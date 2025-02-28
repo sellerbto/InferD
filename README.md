@@ -1,0 +1,2 @@
+# InferD
+Distributed inference framework
