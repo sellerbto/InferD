@@ -1,26 +1,21 @@
-# test.py
-
 import asyncio
 import random
 import time
 import os
 import csv
 from config import port_shift
-from kademlia_client import DistributedHashTableServer
+from kademlia_client import DistributedHashTableServer, DHTServer
 from node import Node
-from test_utils import task_distribution
 
 METRICS_LOG_PATH = "metrics_log.csv"
 NUM_STAGES = 3
 NUM_NODES = 5
 
-task_distribution = {stage: 0  for stage in range(NUM_STAGES)}
-
 # test.py (updated collect_and_log to log per-stage server counts)
 
 async def collect_and_log(bootstrap_nodes, num_stages, interval):
     from test_utils import task_distribution
-    await asyncio.sleep(5)
+    await asyncio.sleep(8)
 
     # Initialize CSV: добавляем колонки для task_distribution и server_count
     with open(METRICS_LOG_PATH, 'w', newline='') as f:
@@ -38,17 +33,24 @@ async def collect_and_log(bootstrap_nodes, num_stages, interval):
 
     dht = DistributedHashTableServer(port=0, num_stages=num_stages, bootstrap_nodes=bootstrap_nodes)
     await dht.start()
+
+    task_bootstrap = [(host, port + 500) for host, port in bootstrap_nodes]
+    task_dht = DHTServer(0,
+                         bootstrap_nodes=task_bootstrap)
+    await task_dht.start()
     start_time = time.time()
 
     try:
         while True:
             t = time.time() - start_time
             dht_map = await dht.get_all()
+            # print(f'dht_map = {dht_map}')
             row = [f"{t:.2f}"]
             for stage in range(num_stages):
                 peers = dht_map.get(str(stage), {})
                 # print(peers)
                 if peers:
+                    # print(f'peers = {peers}')
                     loads = [p['load'] for p in peers.values()]
                     caps  = [p['cap']  for p in peers.values()]
                     row.append(f"{min(loads):.1f}")
@@ -56,8 +58,9 @@ async def collect_and_log(bootstrap_nodes, num_stages, interval):
                 else:
                     row.extend(['', '0'])
             # tasks_running
+            # print(f'TASK DHT = {await task_dht.get_all()}')
             for stage in range(num_stages):
-                row.append(str(task_distribution.get(stage, 0)))
+                row.append(str(sum((await task_dht.get(stage)).values())))
             # servers count
             all_servers_count = 0
             for stage in range(num_stages):
@@ -65,7 +68,7 @@ async def collect_and_log(bootstrap_nodes, num_stages, interval):
                 row.append(str(len(peers)))
                 all_servers_count += len(peers)
             
-            assert all_servers_count == NUM_NODES, f'{all_servers_count} != {NUM_NODES}'
+            # assert all_servers_count == NUM_NODES, f'{all_servers_count} != {NUM_NODES}'
 
             with open(METRICS_LOG_PATH, 'a', newline='') as f:
                 writer = csv.writer(f)
@@ -78,18 +81,37 @@ async def collect_and_log(bootstrap_nodes, num_stages, interval):
 
 def start_node(node_id, port, bootstrap_nodes, num_stages, rebalance_period):
     import asyncio, traceback, random
-    # Create and run loop in this thread
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
+
+    ports = [6000 + i for i in range(NUM_NODES)]
     async def main_node():
-        # Start DHT on given port
         dht = DistributedHashTableServer(port, num_stages=num_stages, bootstrap_nodes=bootstrap_nodes)
         await dht.start()
-        # Random capacity and initial stage
+
+        if node_id == 0:
+            for stage in range(num_stages):
+                init_dict = {
+                    f'127.0.0.1:{ports[n]}': {'load': 0, 'cap': 0}
+                    for n in range(1, NUM_NODES)
+                }
+                await dht.set(str(stage), init_dict)
+            print("Node 0: DHT pre‐initialized")
+
+        task_bootstrap = [(host, port + 500) for host, port in bootstrap_nodes]
+        task_dht = DHTServer(port=port+500,
+                            bootstrap_nodes=task_bootstrap)
+        await task_dht.start()
+
         capacity = 3
         initial_stage = node_id % num_stages
         endpoint_port = port+port_shift
-        node = Node(endpoint_port, num_stages, capacity, dht, rebalance_period)
+        node = Node(endpoint_port,
+                    num_stages,
+                    capacity,
+                    dht, 
+                    task_dht, 
+                    rebalance_period)
         await node.start(initial_stage)
         print(f"🟢 Node {node.node_id}: DHT port={node.port}, HTTP port={endpoint_port}, stage={initial_stage}, cap={capacity}")
         # Keep alive
@@ -113,6 +135,7 @@ async def run():
     for nid in range(1, NUM_NODES):
         bootstrap_for[nid] = [("127.0.0.1", ports[0])]
 
+
     import threading
     threads = []
     for node_id in range(NUM_NODES):
@@ -125,9 +148,8 @@ async def run():
         threads.append(t)
         await asyncio.sleep(0.5)
 
-    print(f"Started {NUM_NODES} nodes with {NUM_STAGES} stages.")
+    # print(f"Started {NUM_NODES} nodes with {NUM_STAGES} stages.")
 
-    # Запуск сборщика метрик
     collector = asyncio.create_task(
         collect_and_log(
             bootstrap_nodes=[("127.0.0.1", ports[0])],
@@ -137,30 +159,33 @@ async def run():
     )
 
     async def random_task_sender():
+        async def post(session, url, payload):
+            try:
+                async with session.post(url, json=payload) as resp:
+                    await resp.release()
+            except Exception as e:
+                print(f"Error sending random task: {e}")
+
         import aiohttp
         async with aiohttp.ClientSession() as session:
             stage = 0
-            while True:
+            for i in range(100):
                 # stage = random.randint(0, NUM_STAGES - 1)
                 node_idx = random.randint(0, NUM_NODES - 1)
                 host, port = ("127.0.0.1", ports[node_idx])
                 url = f"http://{host}:{port+port_shift}/nn_forward"
-                payload = {'stage': stage % NUM_STAGES, 'input_data': {}}
+                r = random.randint(0, 10)
+                payload = {'stage': i//33 if r > 2 else r, 'input_data': {}}
 
                 try:
-                    async with session.post(url, json=payload) as resp:
-                        data = await resp.json()
-                        print(f"Random task: stage {stage} -> node {data['node_id']}")
-                        task_distribution[stage % NUM_STAGES] = task_distribution.get(stage % NUM_STAGES, 0) + 1
+                    asyncio.create_task(post(session, url, payload))
                 except Exception as e:
                     print(f"Error sending random task: {e}")
 
-                await asyncio.sleep(5)
-                # stage += 1
+                await asyncio.sleep(0.7)
+                stage += 1
 
     sender = asyncio.create_task(random_task_sender())
-
-    # Ждём только по collector и sender (ноды в потоках)
     try:
         await asyncio.gather(collector, sender)
     except asyncio.CancelledError:

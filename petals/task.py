@@ -30,7 +30,7 @@ class NNForwardTask(Task):
         self.input_data = input_data
 
     def __repr__(self):
-        return f'NNForwardTask({self.stage}=, {self.input_data=})'
+        return f'NNForwardTask({self.stage=}, {self.input_data=})'
     
 
 
