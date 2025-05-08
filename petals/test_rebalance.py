@@ -1,9 +1,9 @@
 import asyncio
 import random
 import time
-import os
 import csv
 from config import port_shift
+import traceback
 from kademlia_client import DistributedHashTableServer, DHTServer
 from node import Node
 
@@ -11,13 +11,8 @@ METRICS_LOG_PATH = "metrics_log.csv"
 NUM_STAGES = 3
 NUM_NODES = 5
 
-# test.py (updated collect_and_log to log per-stage server counts)
-
 async def collect_and_log(bootstrap_nodes, num_stages, interval):
-    from test_utils import task_distribution
     await asyncio.sleep(8)
-
-    # Initialize CSV: добавляем колонки для task_distribution и server_count
     with open(METRICS_LOG_PATH, 'w', newline='') as f:
         writer = csv.writer(f)
         headers = ['time_s']
@@ -44,31 +39,24 @@ async def collect_and_log(bootstrap_nodes, num_stages, interval):
         while True:
             t = time.time() - start_time
             dht_map = await dht.get_all()
-            # print(f'dht_map = {dht_map}')
             row = [f"{t:.2f}"]
             for stage in range(num_stages):
                 peers = dht_map.get(str(stage), {})
-                # print(peers)
                 if peers:
-                    # print(f'peers = {peers}')
                     loads = [p['load'] for p in peers.values()]
                     caps  = [p['cap']  for p in peers.values()]
                     row.append(f"{min(loads):.1f}")
                     row.append(str(sum(caps)))
                 else:
                     row.extend(['', '0'])
-            # tasks_running
-            # print(f'TASK DHT = {await task_dht.get_all()}')
             for stage in range(num_stages):
                 row.append(str(sum((await task_dht.get(stage)).values())))
-            # servers count
             all_servers_count = 0
             for stage in range(num_stages):
                 peers = dht_map.get(str(stage), {})
                 row.append(str(len(peers)))
                 all_servers_count += len(peers)
-            
-            # assert all_servers_count == NUM_NODES, f'{all_servers_count} != {NUM_NODES}'
+
 
             with open(METRICS_LOG_PATH, 'a', newline='') as f:
                 writer = csv.writer(f)
@@ -80,7 +68,6 @@ async def collect_and_log(bootstrap_nodes, num_stages, interval):
 
 
 def start_node(node_id, port, bootstrap_nodes, num_stages, rebalance_period):
-    import asyncio, traceback, random
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
@@ -113,18 +100,17 @@ def start_node(node_id, port, bootstrap_nodes, num_stages, rebalance_period):
                     task_dht, 
                     rebalance_period)
         await node.start(initial_stage)
-        print(f"🟢 Node {node.node_id}: DHT port={node.port}, HTTP port={endpoint_port}, stage={initial_stage}, cap={capacity}")
-        # Keep alive
+        print(f"🟢 Node {node.node_info.id}: DHT port={node.node_info.port}, HTTP port={endpoint_port}, stage={initial_stage}, cap={capacity}")
         await asyncio.Event().wait()
     try:
         loop.run_until_complete(main_node())
     except Exception:
         traceback.print_exc()
     finally:
-        try:
-            loop.run_until_complete(dht.stop())
-        except Exception:
-            pass
+        # try:
+        #     loop.run_until_complete(dht.stop())
+        # except Exception:
+        #     pass
         loop.close()
 
 async def run():
