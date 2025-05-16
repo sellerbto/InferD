@@ -19,18 +19,28 @@ class Task:
         raise NotImplementedError
     
 
-    
-
 class UserTask(Task):
     pass
 
 class NNForwardTask(Task):
-    def __init__(self, stage, input_data):
+    def __init__(self, id, stage, input_data):
+        self.id = id
         self.stage = stage
         self.input_data = input_data
+        self.result = None
+        self.runned = False
+        self.state = input_data
 
     def __repr__(self):
         return f'NNForwardTask({self.stage=}, {self.input_data=})'
+    
+    def run(self):
+        print(f'Task runned: {self.stage=}, state: {self.state} -> {self.state+1}')
+        self.state += 1
+        # self.runned = True
+    
+    def get_result(self):
+        return self.state
     
 
 

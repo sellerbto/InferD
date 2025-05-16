@@ -79,7 +79,7 @@ def start_node(node_id, port, bootstrap_nodes, num_stages, rebalance_period):
         if node_id == 0:
             for stage in range(num_stages):
                 init_dict = {
-                    f'127.0.0.1:{ports[n]}': {'load': 0, 'cap': 0}
+                    f'127.0.0.1:{ports[n]}': {'load': 0, 'cap': 3}
                     for n in range(1, NUM_NODES)
                 }
                 await dht.set(str(stage), init_dict)

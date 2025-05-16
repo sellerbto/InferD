@@ -31,7 +31,7 @@ class PathFinder:
             chain.append((ip, port))
         return chain
 
-    async def find_best_node(self, stage: int, retry: int = 3) -> int:
+    async def find_best_node(self, stage: int, retry: int = 3):
         # todo: D^* algorithm...
         if retry == 0:
             print(f'Try to reassign node')
@@ -65,6 +65,7 @@ class PathFinder:
             await self.reassign_node(ip, port, stage)
             # raise Exception('3 tries to find node with stage {stage}, but not found...')
 
+        print(f'DHT: {await self.dht.get_all()}')
         record = await self.dht.get(str(stage)) or {}
         if not record:
             print(f'No peers available for stage {stage}. Try to rebalance this node with stage = {self.node_info.stage} to stage {stage}')
@@ -77,7 +78,7 @@ class PathFinder:
             print(f'Retry')
             return await self.find_best_node(stage, retry-1)
         else:
-            print(f'Found {stage}: {record}')
+            print(f'Found stage {stage}: {record}')
         ip_port, _ = min(record.items(), key=lambda x: x[1]['load'])
         # await asyncio.sleep(1)
         return parse_ip_port(ip_port)

@@ -12,7 +12,7 @@ async def min_max_load_stage(node_info, dht_map):
     for stage_str, peers in dht_map.items():
         stage_i = int(stage_str)
         L = sum(p['load'] for p in peers.values())
-        print(f'node stage = {node_info.stage}, ip:host = {node_info.id}, load = {L}, stage number = {stage_i}')
+        # print(f'node stage = {node_info.stage}, ip:host = {node_info.id}, load = {L}, stage number = {stage_i}')
         if L > lmax:
             lmax, smax = L, stage_i
         if L < lmin:

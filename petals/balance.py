@@ -19,6 +19,8 @@ class Balancer:
         self.rebalance_period = rebalance_period
 
     async def rebalance(self):
+        # await asyncio.sleep(self.rebalance_period)
+        # return
         try:
             await asyncio.sleep(self.rebalance_period)
             qi = self.measure_load()
@@ -42,15 +44,15 @@ class Balancer:
                 print(f'Skip rebalance, node_id = {node_id}, stage = {stage}, dht_has_this_ip = {dht_has_this_ip}')
                 return False
 
-            print(f'stage={stage}, {node_id}, map={dht_map}')
+            # print(f'stage={stage}, {node_id}, map={dht_map}')
             # assert qi == dht_map[str(stage)][node_id]['load'], f'{qi} != {dht_map[str(stage)][node_id]["load"]}'
         
             min_load_stages = get_min_load_stages(dht_map, lmin)
-            print(f'node stage = {stage}, ip:host = {node_id}, min_stages = {min_load_stages}, max_stage = {smax}')
+            # print(f'node stage = {stage}, ip:host = {node_id}, min_stages = {min_load_stages}, max_stage = {smax}')
             # if int(stage) == int(smin) and smax is not None and int(smax) != int(smin):
-            if int(stage) in min_load_stages and int(stage) != int(smax):
+            if int(stage) in min_load_stages and int(stage) != int(smax) and len(dht_map[str(stage)]) > 1:
                 # peers_max = dht_map.get(str(smax), {})
-                print(f"Node {node_id}: migrating from stage {stage} to {smax}")
+                # print(f"Node {node_id}: migrating from stage {stage} to {smax}")
                 self.node_info.set_stage(smax)
                 return True
         except Exception as e:
