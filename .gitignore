@@ -1,0 +1,14 @@
+__pycache__/
+.DS_Store
+.vscode
+wandb/
+cli_data/
+configs/
+.env
+.venv
+.poetry
+.mypy_cache
+.idea/
+test.py
+*.ipynb
+*.csv
