@@ -11,14 +11,15 @@ import aiohttp
 
 class Node:
     def __init__(self, 
+            node_ip,
             node_port,
             num_stages: int,
             capacity: int,
             dht: DistributedHashTableServer,
             task_dht: DistributedHashTableServer,
             rebalance_period: int = 10):
-        self.node_info = NodeInfo(id=f'127.0.0.1:{node_port}',
-                            ip='127.0.0.1',
+        self.node_info = NodeInfo(id=f'{node_ip}:{node_port}',
+                            ip=node_ip,
                             port=node_port,
                             num_stages=num_stages,
                             capacity=capacity,
@@ -58,6 +59,7 @@ class Node:
         await self.task_scheduler.announce()
 
     async def rebalance(self):
+        print('Rebalancing...')
         return await self.balancer.rebalance()
     
     async def handle_reassign(self, request):
@@ -146,7 +148,11 @@ class Node:
 
     async def start(self, initial_stage: int, rebalance=True):
         self.node_info.set_stage(initial_stage)
-        self._rebalance_task = asyncio.create_task(self.rebalance_task()) if rebalance else None
+        if rebalance:
+            self._rebalance_task = asyncio.create_task(self.rebalance_task())
+            print("⚙️ rebalance_task created:", self._rebalance_task, flush=True)
+        else:
+            self._rebalance_task = None
         runner = web.AppRunner(self.app)
         await runner.setup()
         site = web.TCPSite(runner, '0.0.0.0', self.dht.port + port_shift)
