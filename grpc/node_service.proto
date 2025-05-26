@@ -1,0 +1,43 @@
+syntax= "proto3";
+
+service NodeService {
+    rpc SendTensor (TensorRequest) returns (RequestResult) {}
+    rpc SaveTensor (TensorRequest) returns (RequestResult) {}
+    rpc GetSavedTensor (GetSavedTensorRequest) returns (TensorRequest) {}
+    rpc GetNodeStats (Empty) returns (NodeStatsResponse) {}
+}
+
+message TensorRequest{
+    bytes input_data = 1;
+    ReturnData return_data = 2;
+}
+
+message RequestResult{
+    bool is_success = 1;
+    string description = 2;
+}
+
+message ReturnData{
+    uint64 request_id = 1;
+    string start_node_addr = 2;
+}
+
+message GetSavedTensorRequest{
+    uint64 request_id = 1;
+}
+
+
+message DeviceFlops {
+  double fp32 = 1;
+  double fp16 = 2;
+  double int8 = 3;
+}
+
+message NodeStatsResponse {
+  string model = 1;
+  string chip = 2;
+  int32 memory = 3;
+  DeviceFlops flops = 4;
+}
+
+message Empty {}
