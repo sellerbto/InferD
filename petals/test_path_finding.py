@@ -22,28 +22,32 @@ async def run():
         await asyncio.sleep(25)
         host, port = ("172.28.0.2", 6050)
         while True:
-            await asyncio.sleep(2)
+            await asyncio.sleep(20)
             url = f"http://{host}:{port}/nn_forward"
+            answer = ''
             r = random.randint(0, 10)
-            payload = {'stage': 0, 'input_data': 0, 'task_id': r}
-            print(f'#############################################')
-            print(f'##########-----------------------############')
-            print(f'#############################################')
-            start_time = time.time()
-            print(f'send task - {payload}, time = {start_time}')
-            print(f'#############################################')
-            print(f'#############################################')
-            print(f'#############################################')
-            answ = await post(url, payload)
-
-            print(f'#############################################')
-            print(f'#############################################')
-            print(f'#############################################')
-            end_time = time.time()
-            print(f'receive answer = {answ}, time = {end_time}, get answer for {end_time - start_time}')
-            print(f'#############################################')
-            print(f'#############################################')
-            print(f'#############################################')
+            
+            for i in range(...):
+  
+                payload = {'stage': 0, 'input_data': 'Привет.', 'task_id': r}
+                print(f'#############################################')
+                print(f'##########-----------------------############')
+                print(f'#############################################')
+                start_time = time.time()
+                print(f'send task - {payload}, time = {start_time}')
+                # print(f'#############################################')
+                # print(f'#############################################')
+                # print(f'#############################################')
+                answ = await post(url, payload)
+                answer += answ.get('result_for_user', '')
+                # print(f'#############################################')
+                # print(f'#############################################')
+                # print(f'#############################################')
+                end_time = time.time()
+                print(f'receive answer = {answ}, time = {end_time}, get answer for {end_time - start_time}')
+            # print(f'#############################################')
+            # print(f'#############################################')
+            # print(f'#############################################')
 
     sender = asyncio.create_task(random_task_sender())
     try:

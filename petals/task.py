@@ -74,36 +74,19 @@ class QwenTask(Task):
             # Ожидаем input_data как prompt:str
             prompt = self.input_data
             # Вызываем forward только для stage=0 → получаем hidden_states
-            hidden1 = self.model.forward(prompt=prompt)
+            hidden1 = self.model.forward(prompt)
             # Сохраняем в result
             self.result = hidden1
 
         elif self.stage == 1:
             # Ожидаем input_data как dict с hidden_states и attention_mask
-            hidden_states = self.input_data.get("hidden_states", None)
-            attention_mask = self.input_data.get("attention_mask", None)
-            if hidden_states is None or attention_mask is None:
-                raise ValueError("Для stage=1 нужно передать {'hidden_states': Tensor, 'attention_mask': Tensor}")
-            # Вызываем forward для stage=1 → получаем hidden2
-            hidden2 = self.model.forward(
-                hidden_states=hidden_states,
-                attention_mask=attention_mask
-            )
-            self.result = hidden2
+            hidden_states = self.model.forward(self.input_data)
+            self.result = hidden_states
 
         else:  # self.stage == LAST_STAGE
             # Ожидаем input_data как prompt:str
-            prompt = self.input_data
-            # Вызываем forward для последнего этапа → получаем весь сгенерированный текст
-            full_text = self.model.forward(
-                prompt=prompt,
-                max_new_tokens=10,
-                do_sample=True,
-                temperature=1.0,
-                top_k=50,
-                top_p=0.9
-            )
-            self.result = full_text
+            hidden_states = self.model.forward(self.input_data)
+            self.result = hidden_states
 
     def get_result(self):
         return self.result

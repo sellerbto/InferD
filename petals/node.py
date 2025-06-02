@@ -127,7 +127,7 @@ class Node:
         data = await request.json()
         print(f'Data: {data}')
         stage = int(data['stage'])
-        task = NNForwardTask(int(data['task_id']), stage, data['input_data'])
+        task = QwenTask(int(data['task_id']), stage, data['input_data'])
 
         if stage != self.node_info.stage:
             return web.json_response({

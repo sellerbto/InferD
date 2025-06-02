@@ -3,6 +3,7 @@ import os
 import socket
 from kademlia_client import DistributedHashTableServer, DHTServer
 from node import Node
+from partitioned_models import Stage1, Stage2, Stage3
 
 
 def get_own_ip() -> str:
