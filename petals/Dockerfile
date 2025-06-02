@@ -4,9 +4,11 @@ RUN pip install uv
 
 WORKDIR /inferd
 
-COPY . .
-
+COPY pyproject.toml .
 RUN uv lock
+
+
+COPY . .
 
 EXPOSE 6050 7050/udp 7051/udp
 

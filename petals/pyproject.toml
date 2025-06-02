@@ -9,6 +9,8 @@ dependencies = [
     "ipykernel>=6.29.5",
     "kademlia",
     "matplotlib>=3.10.1",
+    "moe-infinity>=0.0.1.dev0",
     "torch>=2.6.0",
+    "transformers>=4.52.3",
     "wandb>=0.19.9",
 ]

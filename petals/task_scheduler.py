@@ -1,4 +1,4 @@
-from task import Task, NNForwardTask
+from task import Task, NNForwardTask, QwenTask
 import asyncio
 from node_info import NodeInfo
 
@@ -15,7 +15,7 @@ class TaskScheduler:
     def measure_load(self):
         return self.running_tasks_count
 
-    async def run_task(self, task: NNForwardTask):
+    async def run_task(self, task: QwenTask):
         cur_stage = self.node_info.stage
         task.run()
         td_rec = await self.task_dht.get(cur_stage) or {}

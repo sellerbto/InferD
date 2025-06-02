@@ -105,5 +105,45 @@ class DHTServer:
                 timeout=self.bootstrap_timeout  # Используем параметр
             )
 
-    # Остальные методы остаются аналогично DistributedHashTableServer
-    # с добавлением timeout параметров в async операции
+    async def stop(self):
+        await self.server.stop()
+
+    async def set(self, key: str, value: dict):
+        # if key is not str:
+        #     raise Exception
+        self.keys.add(key)
+        json_value = json.dumps(value)
+        try:
+            await self.server.set(key, json_value)
+        except Exception as e:
+            pass
+
+    async def get(self, key: str, timeout: int = 5) -> dict:
+        if not self.server.bootstrappable_neighbors():
+            return {}
+        try:
+            result = await asyncio.wait_for(self.server.get(key), timeout=timeout)
+            json_dict = json.loads(result) if result else {}
+            return json_dict
+        except asyncio.TimeoutError:
+            return {}
+        except Exception as e:
+            return {}
+
+    async def get_all_keys(self):
+        return list(self.keys)
+
+    async def get_all(self):
+        if not self.server.bootstrappable_neighbors():
+            return {}
+        dht_map = {}
+        keys = await self.get_all_keys()
+        for key in keys:
+            if key not in dht_map:
+                value = await self.get(key)
+                dht_map[key] = value
+        return dht_map
+        
+    async def run_forever(self):
+        while True:
+            await asyncio.sleep(3600)

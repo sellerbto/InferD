@@ -2,7 +2,6 @@ import asyncio
 from kademlia_client import DistributedHashTableServer
 from aiohttp import web, ClientSession
 from task import *
-from config import port_shift
 import traceback
 from utils import parse_ip_port
 from node_info import NodeInfo

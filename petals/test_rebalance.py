@@ -2,7 +2,6 @@ import asyncio
 import random
 import time
 import csv
-from config import port_shift
 import traceback
 from kademlia_client import DistributedHashTableServer, DHTServer
 from node import Node

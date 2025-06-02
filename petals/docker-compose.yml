@@ -1,6 +1,8 @@
 services:
   node0:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: node0
     ports:
       - "7050:7050"
@@ -11,9 +13,15 @@ services:
     networks:
       infernet:
         ipv4_address: 172.28.0.2
+    volumes:
+      - ./:/inferd
+    working_dir: /inferd
+    command: ["uv", "run", "python", "run_node.py"]
 
   node1:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: node1
     ports:
       - "7051:7050"
@@ -24,9 +32,15 @@ services:
     networks:
       infernet:
         ipv4_address: 172.28.0.3
+    volumes:
+      - ./:/inferd
+    working_dir: /inferd
+    command: ["uv", "run", "python", "run_node.py"]
 
   node2:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: node2
     ports:
       - "7052:7050"
@@ -37,6 +51,26 @@ services:
     networks:
       infernet:
         ipv4_address: 172.28.0.4
+    volumes:
+      - ./:/inferd
+    working_dir: /inferd
+    command: ["uv", "run", "python", "run_node.py"]
+
+  node3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: node3
+    ports:
+      - "7053:7050"
+      - "6053:6050"
+    networks:
+      infernet:
+        ipv4_address: 172.28.0.5
+    volumes:
+      - ./:/inferd
+    working_dir: /inferd
+    command: ["uv", "run", "python", "test_path_finding.py"]
 
 networks:
   infernet:

@@ -1,13 +1,12 @@
 import asyncio
 from kademlia_client import DistributedHashTableServer
 from aiohttp import web
+import aiohttp
 from task import *
-from config import port_shift
 from node_info import NodeInfo
 from path_finder import PathFinder
 from balance import Balancer
 from task_scheduler import TaskScheduler
-import aiohttp
 
 class Node:
     def __init__(self, 
@@ -94,7 +93,7 @@ class Node:
                 return None
 
     
-    async def run_task(self, task: NNForwardTask):
+    async def run_task(self, task: Task):
         await self.task_scheduler.run_task(task)
         cur_stage = task.stage
         task_result = task.get_result()
@@ -128,7 +127,7 @@ class Node:
         data = await request.json()
         print(f'Data: {data}')
         stage = int(data['stage'])
-        task = NNForwardTask(int(data['task_id']), stage, int(data['input_data']))
+        task = NNForwardTask(int(data['task_id']), stage, data['input_data'])
 
         if stage != self.node_info.stage:
             return web.json_response({
@@ -155,9 +154,9 @@ class Node:
             self._rebalance_task = None
         runner = web.AppRunner(self.app)
         await runner.setup()
-        site = web.TCPSite(runner, '0.0.0.0', self.dht.port + port_shift)
+        site = web.TCPSite(runner, self.node_info.ip, self.node_info.port)
         await site.start()
-        print(f"Node {self.node_info.id}: HTTP API on port {self.dht.port + port_shift}")
+        print(f"Node {self.node_info.id}: HTTP API on port {self.node_info.ip}:{self.node_info.port}")
 
 
     async def stop(self):
