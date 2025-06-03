@@ -2,7 +2,7 @@ import torch.nn as nn
 from typing import List, Optional
 import torch
 from transformers import AutoTokenizer
-from partitioned_models import PartitionedQwen2
+from partitioned_models import PartitionedQwen2, LAST_STAGE
 
 class Task:
     def __init__(self, input_data):
@@ -60,33 +60,49 @@ class NNForwardTask(Task):
 #     def get_result(self):
 #         return self.result
 
+
 class QwenTask(Task):
     def __init__(self, id: int, stage: int, input_data):
-
         self.id = id
         self.stage = stage
-        self.input_data = input_data
+        self.input_data = input_data   # либо str (для stage=0), либо dict
         self.model = PartitionedQwen2(stage)
         self.result = None
 
     def run(self):
+        # === STAGE 0 ===
         if self.stage == 0:
-            # Ожидаем input_data как prompt:str
-            prompt = self.input_data
-            # Вызываем forward только для stage=0 → получаем hidden_states
-            hidden1 = self.model.forward(prompt)
-            # Сохраняем в result
-            self.result = hidden1
+            if isinstance(self.input_data, str):
+                out = self.model.forward({"prompt": self.input_data})
+            else:
+                out = self.model.forward({"generated_ids": self.input_data["generated_ids"]})
+            # out == {"hidden_meta": ..., "generated_ids": [...]}
+            self.result = out
 
+        # === STAGE 1 ===
         elif self.stage == 1:
-            # Ожидаем input_data как dict с hidden_states и attention_mask
-            hidden_states = self.model.forward(self.input_data)
-            self.result = hidden_states
+            # ожидаем input_data = {"hidden_meta": …, "generated_ids": […]} 
+            hm = self.input_data["hidden_meta"]
+            gen_ids = self.input_data["generated_ids"]
+            out = self.model.forward({"hidden_meta": hm})
+            # out == {"hidden_meta": …} для Stage 2
+            # Передаем дальше и generated_ids
+            self.result = {
+                "hidden_meta": out["hidden_meta"],
+                "generated_ids": gen_ids
+            }
 
-        else:  # self.stage == LAST_STAGE
-            # Ожидаем input_data как prompt:str
-            hidden_states = self.model.forward(self.input_data)
-            self.result = hidden_states
+        # === STAGE 2 ===
+        elif self.stage == LAST_STAGE:
+            # ожидаем input_data = {"hidden_meta": …, "generated_ids": […]} 
+            hm = self.input_data["hidden_meta"]
+            gen_ids = self.input_data["generated_ids"]
+            out = self.model.forward({"hidden_meta": hm, "generated_ids": gen_ids})
+            # out == {"next_token_str": ..., "generated_ids": [...]}
+            self.result = out
+
+        else:
+            raise RuntimeError(f"Invalid stage {self.stage} in QwenTask")
 
     def get_result(self):
         return self.result

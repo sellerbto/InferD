@@ -27,24 +27,23 @@ async def run():
             answer = ''
             r = random.randint(0, 10)
             
-            for i in range(...):
+            payload = {'stage': 0, 'input_data': 'Привет.', 'task_id': r}
+            print(f'#############################################')
+            print(f'##########-----------------------############')
+            print(f'#############################################')
+            start_time = time.time()
+            print(f'send task - {payload}, time = {start_time}')
+            # print(f'#############################################')
+            # print(f'#############################################')
+            # print(f'#############################################')
+            answ = await post(url, payload)
+            # print(f'#############################################')
+            # print(f'#############################################')
+            # print(f'#############################################')
+            end_time = time.time()
+            print(f'receive answer = {answ}, time = {end_time}, get answer for {end_time - start_time}')
   
-                payload = {'stage': 0, 'input_data': 'Привет.', 'task_id': r}
-                print(f'#############################################')
-                print(f'##########-----------------------############')
-                print(f'#############################################')
-                start_time = time.time()
-                print(f'send task - {payload}, time = {start_time}')
-                # print(f'#############################################')
-                # print(f'#############################################')
-                # print(f'#############################################')
-                answ = await post(url, payload)
-                answer += answ.get('result_for_user', '')
-                # print(f'#############################################')
-                # print(f'#############################################')
-                # print(f'#############################################')
-                end_time = time.time()
-                print(f'receive answer = {answ}, time = {end_time}, get answer for {end_time - start_time}')
+                
             # print(f'#############################################')
             # print(f'#############################################')
             # print(f'#############################################')

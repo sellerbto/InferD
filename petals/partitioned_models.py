@@ -1,11 +1,10 @@
 import torch
 import torch.nn.functional as F
 from transformers import Qwen2Tokenizer
-import torch
 import base64
 import numpy as np
+# === Вспомогательные функции для конвертации Tensor ↔ base64 ===
 
-# Класс, который возвращает сразу и base64, и форму тензора
 def tensor_to_base64(tensor: torch.Tensor) -> dict:
     """
     Возвращает:
@@ -18,15 +17,14 @@ def tensor_to_base64(tensor: torch.Tensor) -> dict:
     array = tensor.detach().cpu().numpy()
     b64 = base64.b64encode(array.tobytes()).decode("utf-8")
     return {
-        "b64": b64,
-        "dtype": str(array.dtype),               # например, "float32"
-        "shape": list(array.shape),             # [1, seq_len, hidden_size]
+        "b64":   b64,
+        "dtype": str(array.dtype),
+        "shape": list(array.shape),
     }
-
 
 def base64_to_tensor(meta: dict) -> torch.Tensor:
     """
-    Ожидает dictionary из tensor_to_base64_with_meta:
+    Ожидает dict из tensor_to_base64:
       {
         "b64": "<строка>",
         "dtype": "float32",
@@ -41,29 +39,7 @@ def base64_to_tensor(meta: dict) -> torch.Tensor:
     array = np.frombuffer(data, dtype=dtype).reshape(shape)
     return torch.from_numpy(array)
 
-
-
-class Stage1(torch.nn.Module):
-    def __init__(self, embed_tokens, rotary_emb, layers):
-        super().__init__()
-        self.embed      = embed_tokens
-        self.rotary     = rotary_emb
-        self.layers     = torch.nn.ModuleList(layers)
-
-    def forward(self, input_ids, decoder_attn_mask, position_ids):
-        hidden_states = self.embed(input_ids)                      # (1, seq_len, hidden_size)
-        cos, sin = self.rotary(hidden_states, position_ids)       # RoPE cos и sin
-        for layer in self.layers:
-            hidden_states = layer(
-                hidden_states,
-                attention_mask=decoder_attn_mask,
-                position_ids=position_ids,
-                position_embeddings=(cos, sin)
-            )[0]
-
-        
-        return hidden_states  # (1, seq_len, hidden_size)
-
+# === Функция построения 4D каузальной маски из 2D padding-маски ===
 
 def build_decoder_attention_mask(attn_mask_2d: torch.Tensor) -> torch.Tensor:
     """
@@ -72,11 +48,38 @@ def build_decoder_attention_mask(attn_mask_2d: torch.Tensor) -> torch.Tensor:
     Возвращает BoolTensor (1, 1, seq_len, seq_len).
     """
     seq_len = attn_mask_2d.size(1)
-    causal = torch.tril(torch.ones((seq_len, seq_len), device=attn_mask_2d.device, dtype=torch.bool))
+    causal = torch.tril(torch.ones((seq_len, seq_len),
+                                   device=attn_mask_2d.device,
+                                   dtype=torch.bool))
     causal = causal.unsqueeze(0).unsqueeze(1)  # (1, 1, seq_len, seq_len)
-    padding_mask = attn_mask_2d.unsqueeze(1).unsqueeze(2).to(torch.bool)  # (1,1,1,seq_len)
-    return padding_mask & causal  # (1,1,seq_len,seq_len)
+    padding_mask = attn_mask_2d.unsqueeze(1).unsqueeze(2).to(torch.bool)  # (1, 1, 1, seq_len)
+    return padding_mask & causal  # (1, 1, seq_len, seq_len)
 
+# === Stage1, Stage2, Stage3 ===
+
+class Stage1(torch.nn.Module):
+    def __init__(self, embed_tokens, rotary_emb, layers):
+        super().__init__()
+        self.embed  = embed_tokens
+        self.rotary = rotary_emb
+        self.layers = torch.nn.ModuleList(layers)
+
+    def forward(self, input_ids, decoder_attn_mask, position_ids):
+        """
+        input_ids: LongTensor (1, seq_len)
+        decoder_attn_mask: BoolTensor (1, 1, seq_len, seq_len)
+        position_ids: LongTensor (1, seq_len)
+        """
+        hidden_states = self.embed(input_ids)                      # (1, seq_len, hidden_size)
+        cos, sin = self.rotary(hidden_states, position_ids)        # RoPE: cos и sin
+        for layer in self.layers:
+            hidden_states = layer(
+                hidden_states,
+                attention_mask=decoder_attn_mask,
+                position_ids=position_ids,
+                position_embeddings=(cos, sin)
+            )[0]
+        return hidden_states  # (1, seq_len, hidden_size)
 
 class Stage2(torch.nn.Module):
     def __init__(self, rotary_emb, layers):
@@ -100,26 +103,13 @@ class Stage2(torch.nn.Module):
             )[0]
         return hidden_states  # (1, seq_len, hidden_size)
 
-def build_decoder_attention_mask(attn_mask_2d: torch.Tensor) -> torch.Tensor:
-    """
-    Формирует 4D-каузальную маску (аналогично Stage1).
-    attn_mask_2d: (1, seq_len), LongTensor из единиц.
-    """
-    seq_len = attn_mask_2d.size(1)
-    causal = torch.tril(torch.ones((seq_len, seq_len), device=attn_mask_2d.device, dtype=torch.bool))
-    causal = causal.unsqueeze(0).unsqueeze(1)  # (1,1,seq_len,seq_len)
-    padding_mask = attn_mask_2d.unsqueeze(1).unsqueeze(2).to(torch.bool)  # (1,1,1,seq_len)
-    return padding_mask & causal  # (1,1,seq_len,seq_len)
-
-
-
 class Stage3(torch.nn.Module):
     def __init__(self, rotary_emb, layers, final_norm, lm_head):
         super().__init__()
-        self.rotary   = rotary_emb
-        self.layers   = torch.nn.ModuleList(layers)
-        self.norm     = final_norm
-        self.lm_head  = lm_head
+        self.rotary  = rotary_emb
+        self.layers  = torch.nn.ModuleList(layers)
+        self.norm    = final_norm
+        self.lm_head = lm_head
 
     def forward(self, hidden_states, decoder_attn_mask, position_ids):
         """
@@ -139,25 +129,26 @@ class Stage3(torch.nn.Module):
         logits = self.lm_head(hidden_states)          # (1, seq_len, vocab_size)
         return logits
 
-def build_decoder_attention_mask(attn_mask_2d: torch.Tensor) -> torch.Tensor:
-    """
-    Формирует 4D-каузальную маску (аналогично Stage1/Stage2).
-    attn_mask_2d: (1, seq_len), LongTensor из единиц.
-    """
-    seq_len = attn_mask_2d.size(1)
-    causal = torch.tril(torch.ones((seq_len, seq_len), device=attn_mask_2d.device, dtype=torch.bool))
-    causal = causal.unsqueeze(0).unsqueeze(1)  # (1,1,seq_len,seq_len)
-    padding_mask = attn_mask_2d.unsqueeze(1).unsqueeze(2).to(torch.bool)  # (1,1,1,seq_len)
-    return padding_mask & causal  # (1,1,seq_len,seq_len)
-
+# === Константа, обозначающая последнюю стадию ===
 
 LAST_STAGE = 2
 
+# === Класс PartitionedQwen2 с универсальным методом forward ===
+
 class PartitionedQwen2:
-    def __init__(self, stage: int, model_name="Qwen/Qwen2-0.5B", parts_dir="."):
+    """
+    stage = 0, 1 или 2.
+    • stage=0  → загружает stage1.pth + токенизатор. 
+    • stage=1  → загружает stage2.pth (без токенизатора).
+    • stage=2  → загружает stage3.pth + токенизатор.
+    """
+
+    def __init__(self,
+                 stage: int,
+                 model_name: str = "Qwen/Qwen2-0.5B",
+                 parts_dir: str = "."):
         self.stage = stage
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.sessions = {}  # task_id → session state
 
         if stage in (0, LAST_STAGE):
             self.tokenizer = Qwen2Tokenizer.from_pretrained(model_name)
@@ -168,82 +159,114 @@ class PartitionedQwen2:
         self.model = torch.load(path, map_location=self.device, weights_only=False)
         self.model.to(self.device).eval()
 
-    def forward(self, inp, task_id):
+    def forward(self, inputs: dict) -> dict:
+        # ===== STAGE 0 =====
         if self.stage == 0:
-            prompt = inp
-            input_ids = self.tokenizer(prompt, return_tensors="pt").input_ids.to(self.device)
-            seq_len = input_ids.size(1)
+            # Если есть "prompt", это первый вызов для данного таска
+            if "prompt" in inputs:
+                prompt = inputs["prompt"]
+                encoding = self.tokenizer(prompt, return_tensors="pt")
+                input_ids = encoding.input_ids.to(self.device)       # (1, seq_len)
+                id_list = input_ids.squeeze().tolist()               # [id0, id1, ...]
+                seq_len = input_ids.size(1)
 
-            attn_mask = torch.ones((1, seq_len), dtype=torch.long, device=self.device)
-            dec_attn_mask = build_decoder_attention_mask(attn_mask)
-            pos_ids = torch.arange(seq_len, dtype=torch.long, device=self.device).unsqueeze(0)
+                attn_mask_1d = torch.ones((1, seq_len), device=self.device, dtype=torch.long)
+                decoder_attn_mask = build_decoder_attention_mask(attn_mask_1d)
+                position_ids = torch.arange(seq_len, device=self.device).unsqueeze(0)
 
-            with torch.no_grad():
-                hidden1 = self.model(input_ids, dec_attn_mask, pos_ids)
+                with torch.no_grad():
+                    hidden1 = self.model(input_ids, decoder_attn_mask, position_ids)  # (1, seq_len, hidden_size)
 
-            # Сохраняем всё в сессию
-            self.sessions[task_id] = {
-                "input_ids": input_ids,
-                "text": prompt,
-                "hidden1": hidden1,
-            }
-            return  # Stage 0 ничего не возвращает
+                meta = tensor_to_base64(hidden1)
+                hidden_meta = {"b64": meta["b64"], "dtype": meta["dtype"], "shape": meta["shape"]}
 
+                return {
+                    "hidden_meta":   hidden_meta,
+                    "generated_ids": id_list
+                }
+
+            # Иначе это повторный вызов Stage 0 с уже накопленным списком ID
+            elif "generated_ids" in inputs:
+                gen_ids = inputs["generated_ids"]
+                input_ids = torch.tensor([gen_ids], dtype=torch.long, device=self.device)  # (1, seq_len)
+                seq_len = input_ids.size(1)
+
+                attn_mask_1d = torch.ones((1, seq_len), device=self.device, dtype=torch.long)
+                decoder_attn_mask = build_decoder_attention_mask(attn_mask_1d)
+                position_ids = torch.arange(seq_len, device=self.device).unsqueeze(0)
+
+                with torch.no_grad():
+                    hidden1 = self.model(input_ids, decoder_attn_mask, position_ids)
+
+                meta = tensor_to_base64(hidden1)
+                hidden_meta = {"b64": meta["b64"], "dtype": meta["dtype"], "shape": meta["shape"]}
+
+                return {
+                    "hidden_meta":   hidden_meta,
+                    "generated_ids": gen_ids
+                }
+
+            else:
+                raise RuntimeError("Stage=0: нужно передать либо 'prompt', либо 'generated_ids'.")
+
+        # ===== STAGE 1 =====
         elif self.stage == 1:
-            session = self.sessions.get(task_id)
-            if session is None:
-                raise ValueError(f"No session found for task_id={task_id}")
-            hidden1 = session["hidden1"]
+            if "hidden_meta" not in inputs:
+                raise RuntimeError("Stage=1: требуется 'hidden_meta'.")
+            hidden_meta_in = inputs["hidden_meta"]
+            hidden1 = base64_to_tensor({
+                "b64":   hidden_meta_in["b64"],
+                "dtype": hidden_meta_in["dtype"],
+                "shape": hidden_meta_in["shape"]
+            }).to(self.device)  # (1, seq_len, hidden_size)
+
             seq_len = hidden1.size(1)
-
-            attn_mask = torch.ones((1, seq_len), dtype=torch.long, device=self.device)
-            dec_attn_mask = build_decoder_attention_mask(attn_mask)
-            pos_ids = torch.arange(seq_len, dtype=torch.long, device=self.device).unsqueeze(0)
+            attn_mask_1d = torch.ones((1, seq_len), device=self.device, dtype=torch.long)
+            decoder_attn_mask = build_decoder_attention_mask(attn_mask_1d)
+            position_ids = torch.arange(seq_len, device=self.device).unsqueeze(0)
 
             with torch.no_grad():
-                hidden2 = self.model(hidden1, dec_attn_mask, pos_ids)
+                hidden2 = self.model(hidden1, decoder_attn_mask, position_ids)  # (1, seq_len, hidden_size)
 
-            # Обновляем hidden2
-            session["hidden2"] = hidden2
-            return  # Stage 1 ничего не возвращает
+            meta2 = tensor_to_base64(hidden2)
+            # Раньше мы возвращали hidden2_meta, теперь просто hidden_meta
+            hidden_meta = {"b64": meta2["b64"], "dtype": meta2["dtype"], "shape": meta2["shape"]}
 
-        else:
-            session = self.sessions.get(task_id)
-            if session is None:
-                raise ValueError(f"No session found for task_id={task_id}")
-            hidden2 = session["hidden2"]
-            input_ids = session["input_ids"]
+            return {
+                "hidden_meta": hidden_meta
+            }
+
+        # ===== STAGE 2 =====
+        elif self.stage == LAST_STAGE:
+            if "hidden_meta" not in inputs or "generated_ids" not in inputs:
+                raise RuntimeError("Stage=2: требуются 'hidden_meta' и 'generated_ids'.")
+            hidden_meta_in = inputs["hidden_meta"]
+            gen_ids = inputs["generated_ids"]
+
+            hidden2 = base64_to_tensor({
+                "b64":   hidden_meta_in["b64"],
+                "dtype": hidden_meta_in["dtype"],
+                "shape": hidden_meta_in["shape"]
+            }).to(self.device)  # (1, seq_len, hidden_size)
+
             seq_len = hidden2.size(1)
-
-            attn_mask = torch.ones((1, seq_len), dtype=torch.long, device=self.device)
-            dec_attn_mask = build_decoder_attention_mask(attn_mask)
-            pos_ids = torch.arange(seq_len, dtype=torch.long, device=self.device).unsqueeze(0)
+            attn_mask_1d = torch.ones((1, seq_len), device=self.device, dtype=torch.long)
+            decoder_attn_mask = build_decoder_attention_mask(attn_mask_1d)
+            position_ids = torch.arange(seq_len, device=self.device).unsqueeze(0)
 
             with torch.no_grad():
-                logits_all = self.model(hidden2, dec_attn_mask, pos_ids)
+                logits_all = self.model(hidden2, decoder_attn_mask, position_ids)  # (1, seq_len, vocab_size)
 
             logits_last = logits_all[:, -1, :]
-            next_token_id = torch.argmax(logits_last, dim=-1)
-            next_token_int = next_token_id.item()
-            next_token_str = self.tokenizer.decode(next_token_int, skip_special_tokens=True)
+            next_id = torch.argmax(logits_last, dim=-1).squeeze().item()
+            next_str = self.tokenizer.decode(next_id, skip_special_tokens=True)
 
-            # Обновляем state
-            next_token_tensor = torch.tensor([[next_token_int]], device=self.device)
-            session["input_ids"] = torch.cat([input_ids, next_token_tensor], dim=1)
-            session["text"] += next_token_str
+            new_ids = gen_ids + [next_id]
+            return {
+                "next_token_id":  next_id,
+                "next_token_str": next_str,
+                "generated_ids":  new_ids
+            }
 
-            # Заново считаем hidden1 для нового текста
-            new_input = session["text"]
-            input_ids = self.tokenizer(new_input, return_tensors="pt").input_ids.to(self.device)
-            session["input_ids"] = input_ids
-            seq_len = input_ids.size(1)
-
-            attn_mask = torch.ones((1, seq_len), dtype=torch.long, device=self.device)
-            dec_attn_mask = build_decoder_attention_mask(attn_mask)
-            pos_ids = torch.arange(seq_len, dtype=torch.long, device=self.device).unsqueeze(0)
-
-            with torch.no_grad():
-                hidden1 = self.model.embed(input_ids)  # только embed
-            session["hidden1"] = hidden1
-
-            return next_token_str
+        else:
+            raise RuntimeError(f"Недопустимый stage={self.stage}.")
