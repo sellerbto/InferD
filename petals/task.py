@@ -45,22 +45,6 @@ class NNForwardTask(Task):
         return self.state
 
 
-# class MLPTask(Task):
-#     def __init__(self, id: int, stage: int, input_data):
-#         self.id = id
-#         self.stage = stage
-#         self.model = PartitionedMLP(stage)
-#         self.input_data = input_data
-#         self.result = None
-
-#     def run(self):
-#         input_tensor = torch.tensor(self.input_data, dtype=torch.float32)
-#         self.result = self.model.forward(input_tensor).detach().numpy().tolist()
-
-#     def get_result(self):
-#         return self.result
-
-
 class QwenTask(Task):
     def __init__(self, id: int, stage: int, input_data):
         self.id = id
@@ -70,7 +54,6 @@ class QwenTask(Task):
         self.result = None
 
     def run(self):
-        # === STAGE 0 ===
         if self.stage == 0:
             if isinstance(self.input_data, str):
                 out = self.model.forward({"prompt": self.input_data})
@@ -79,14 +62,12 @@ class QwenTask(Task):
             # out == {"hidden_meta": ..., "generated_ids": [...]}
             self.result = out
 
-        # === STAGE 1 ===
         elif self.stage == 1:
-            # ожидаем input_data = {"hidden_meta": …, "generated_ids": […]} 
+            # input_data = {"hidden_meta": …, "generated_ids": […]} 
             hm = self.input_data["hidden_meta"]
             gen_ids = self.input_data["generated_ids"]
             out = self.model.forward({"hidden_meta": hm})
             # out == {"hidden_meta": …} для Stage 2
-            # Передаем дальше и generated_ids
             self.result = {
                 "hidden_meta": out["hidden_meta"],
                 "generated_ids": gen_ids

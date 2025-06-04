@@ -8,6 +8,8 @@ from node_info import NodeInfo
 from path_finder import PathFinder
 from balance import Balancer
 from task_scheduler import TaskScheduler
+from partitioned_models import LAST_STAGE
+
 
 class Node:
     def __init__(self,
@@ -110,84 +112,23 @@ class Node:
             'input_data': task_result,
         }
 
-        print(f'Node {self.node_info.id} send to {url}, payload={payload}')
         response = await self.post(url, payload)
-        print(f'Node {self.node_info.id} receives from {url}, response={response}')
         return response
 
     async def handle_nn_forward(self, request):
-        """
-        Ожидаем JSON:
-          {
-            "task_id": <любой>,
-            "stage": <0,1 или 2>,
-            "input_data": <строка или dict>
-          }
-        """
         data = await request.json()
         task_id = data["task_id"]
         stage = int(data["stage"])
         payload = data["input_data"]
 
-        # Если запрос не на этот stage — сразу ошибка
         if stage != self.node_info.stage:
             return web.json_response({
                 'error': f'Node at stage {self.node_info.stage} cannot handle stage {stage}'
             })
-
-        from partitioned_models import LAST_STAGE
-
-        # === STAGE 0 ===
-        if stage == 0:
-            prompt = payload  # строка
-            generated_text = ""
-            gen_ids = []
-
-            # Первый шаг: run_task(stage=0, prompt) автоматически пошлет chain→1→2
-            task0 = QwenTask(task_id, 0, prompt)
-            resp0 = await self.run_task(task0)
-            # resp0 == {"next_token_str": строка, "generated_ids": [...]}
-            nxt = resp0["next_token_str"]
-            gen_ids = resp0["generated_ids"]
-            if nxt == "":
-                # сразу EOS
-                return web.json_response({'result_for_user': ""})
-            generated_text += nxt
-
-            # Далее — повторяем до 49 раз:
-            for _ in range(5):
-                # a) пересчет Stage0 с уже имеющимися gen_ids:
-                task0 = QwenTask(task_id, 0, {"generated_ids": gen_ids})
-                resp0 = await self.run_task(task0)
-                nxt = resp0["next_token_str"]
-                gen_ids = resp0["generated_ids"]
-                if nxt == "" or nxt == task0.model.tokenizer.eos_token:
-                    break
-                generated_text += nxt
-
-            return web.json_response({'result_for_user': generated_text})
-
-        # === STAGE 1 ===
-        if stage == 1:
-            # payload == {"hidden_meta": …, "generated_ids": […]}
-            task1 = QwenTask(task_id, 1, payload)
-            resp = await self.run_task(task1)
-            # resp == {"next_token_str": строка, "generated_ids": […]}
-            return web.json_response({
-                'next_token_str': resp["next_token_str"],
-                'generated_ids': resp["generated_ids"]
-            })
-
-        # === STAGE 2 ===
-        if stage == LAST_STAGE:
-            # payload == {"hidden_meta": …, "generated_ids": […]}
-            task2 = QwenTask(task_id, LAST_STAGE, payload)
-            resp = await self.run_task(task2)
-            # resp == {'result_for_user': {"next_token_str":…, "generated_ids": […]}}
-            return web.json_response(resp["result_for_user"])
-
-        return web.json_response({'error': 'Invalid stage'})
-
+        
+        task1 = QwenTask(task_id, stage, payload)
+        resp1 = await self.run_task(task1)
+        return web.json_response(resp1)
 
     async def start(self, initial_stage: int, rebalance=True):
         self.node_info.set_stage(initial_stage)
