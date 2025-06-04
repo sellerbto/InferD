@@ -1,18 +1,18 @@
 syntax= "proto3";
 
 service NodeService {
-    rpc SendTensor (TensorRequest) returns (RequestResult) {}
-    rpc SaveTensor (TensorRequest) returns (RequestResult) {}
-    rpc GetSavedTensor (GetSavedTensorRequest) returns (TensorRequest) {}
-    rpc GetNodeStats (Empty) returns (NodeStatsResponse) {}
+    rpc SendTensor (TensorRequest) returns (RequestResult);
+    rpc SaveTensor (TensorRequest) returns (RequestResult);
+    rpc GetSavedTensor (GetSavedTensorRequest) returns (TensorRequest);
+    rpc GetNodeStats (Empty) returns (NodeStatsResponse);
 }
 
-message TensorRequest{
+message TensorRequest {
     bytes input_data = 1;
     ReturnData return_data = 2;
 }
 
-message RequestResult{
+message RequestResult {
     bool is_success = 1;
     string description = 2;
 }

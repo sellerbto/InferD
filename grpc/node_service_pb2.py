@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x12node_service.proto\"E\n\rTensorRequest\x12\x12\n\ninput_data\x18\x01 \x01(\x0c\x12 \n\x0breturn_data\x18\x02 \x01(\x0b\x32\x0b.ReturnData\"8\n\rRequestResult\x12\x12\n\nis_success\x18\x01 \x01(\x08\x12\x13\n\x0b\x64\x65scription\x18\x02 \x01(\t\"9\n\nReturnData\x12\x12\n\nrequest_id\x18\x01 \x01(\x04\x12\x17\n\x0fstart_node_addr\x18\x02 \x01(\t\"+\n\x15GetSavedTensorRequest\x12\x12\n\nrequest_id\x18\x01 \x01(\x04\"7\n\x0b\x44\x65viceFlops\x12\x0c\n\x04\x66p32\x18\x01 \x01(\x01\x12\x0c\n\x04\x66p16\x18\x02 \x01(\x01\x12\x0c\n\x04int8\x18\x03 \x01(\x01\"]\n\x11NodeStatsResponse\x12\r\n\x05model\x18\x01 \x01(\t\x12\x0c\n\x04\x63hip\x18\x02 \x01(\t\x12\x0e\n\x06memory\x18\x03 \x01(\x05\x12\x1b\n\x05\x66lops\x18\x04 \x01(\x0b\x32\x0c.DeviceFlops\"\x07\n\x05\x45mpty2\xd7\x01\n\x0bNodeService\x12.\n\nSendTensor\x12\x0e.TensorRequest\x1a\x0e.RequestResult\"\x00\x12.\n\nSaveTensor\x12\x0e.TensorRequest\x1a\x0e.RequestResult\"\x00\x12:\n\x0eGetSavedTensor\x12\x16.GetSavedTensorRequest\x1a\x0e.TensorRequest\"\x00\x12,\n\x0cGetNodeStats\x12\x06.Empty\x1a\x12.NodeStatsResponse\"\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x12node_service.proto\"E\n\rTensorRequest\x12\x12\n\ninput_data\x18\x01 \x01(\x0c\x12 \n\x0breturn_data\x18\x02 \x01(\x0b\x32\x0b.ReturnData\"8\n\rRequestResult\x12\x12\n\nis_success\x18\x01 \x01(\x08\x12\x13\n\x0b\x64\x65scription\x18\x02 \x01(\t\"9\n\nReturnData\x12\x12\n\nrequest_id\x18\x01 \x01(\x04\x12\x17\n\x0fstart_node_addr\x18\x02 \x01(\t\"+\n\x15GetSavedTensorRequest\x12\x12\n\nrequest_id\x18\x01 \x01(\x04\"7\n\x0b\x44\x65viceFlops\x12\x0c\n\x04\x66p32\x18\x01 \x01(\x01\x12\x0c\n\x04\x66p16\x18\x02 \x01(\x01\x12\x0c\n\x04int8\x18\x03 \x01(\x01\"]\n\x11NodeStatsResponse\x12\r\n\x05model\x18\x01 \x01(\t\x12\x0c\n\x04\x63hip\x18\x02 \x01(\t\x12\x0e\n\x06memory\x18\x03 \x01(\x05\x12\x1b\n\x05\x66lops\x18\x04 \x01(\x0b\x32\x0c.DeviceFlops\"\x07\n\x05\x45mpty2\xcf\x01\n\x0bNodeService\x12,\n\nSendTensor\x12\x0e.TensorRequest\x1a\x0e.RequestResult\x12,\n\nSaveTensor\x12\x0e.TensorRequest\x1a\x0e.RequestResult\x12\x38\n\x0eGetSavedTensor\x12\x16.GetSavedTensorRequest\x1a\x0e.TensorRequest\x12*\n\x0cGetNodeStats\x12\x06.Empty\x1a\x12.NodeStatsResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -46,5 +46,5 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_EMPTY']._serialized_start=407
   _globals['_EMPTY']._serialized_end=414
   _globals['_NODESERVICE']._serialized_start=417
-  _globals['_NODESERVICE']._serialized_end=632
+  _globals['_NODESERVICE']._serialized_end=624
 # @@protoc_insertion_point(module_scope)
