@@ -1,0 +1,159 @@
+version: '3.8'
+services:
+  node0:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PTH_DIR: node0
+    container_name: node0
+    ports:
+    - 7050:7050
+    - 6050:6050
+    environment:
+    - INITIAL_STAGE=0
+    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050,172.28.0.6:7050,172.28.0.7:7050
+    networks:
+      infernet:
+        ipv4_address: 172.28.0.2
+    working_dir: /inferd
+    command:
+    - uv
+    - run
+    - python
+    - run_node.py
+  node1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PTH_DIR: node1
+    container_name: node1
+    ports:
+    - 7051:7050
+    - 6051:6050
+    environment:
+    - INITIAL_STAGE=1
+    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050,172.28.0.6:7050,172.28.0.7:7050
+    networks:
+      infernet:
+        ipv4_address: 172.28.0.3
+    working_dir: /inferd
+    command:
+    - uv
+    - run
+    - python
+    - run_node.py
+  node2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PTH_DIR: node2
+    container_name: node2
+    ports:
+    - 7052:7050
+    - 6052:6050
+    environment:
+    - INITIAL_STAGE=2
+    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050,172.28.0.6:7050,172.28.0.7:7050
+    networks:
+      infernet:
+        ipv4_address: 172.28.0.4
+    working_dir: /inferd
+    command:
+    - uv
+    - run
+    - python
+    - run_node.py
+  node3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PTH_DIR: node3
+    container_name: node3
+    ports:
+    - 7053:7050
+    - 6053:6050
+    environment:
+    - INITIAL_STAGE=2
+    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050,172.28.0.6:7050,172.28.0.7:7050
+    networks:
+      infernet:
+        ipv4_address: 172.28.0.5
+    working_dir: /inferd
+    command:
+    - uv
+    - run
+    - python
+    - run_node.py
+  node4:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PTH_DIR: node4
+    container_name: node4
+    ports:
+    - 7054:7050
+    - 6054:6050
+    environment:
+    - INITIAL_STAGE=2
+    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050,172.28.0.6:7050,172.28.0.7:7050
+    networks:
+      infernet:
+        ipv4_address: 172.28.0.6
+    working_dir: /inferd
+    command:
+    - uv
+    - run
+    - python
+    - run_node.py
+  node5:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PTH_DIR: node5
+    container_name: node5
+    ports:
+    - 7055:7050
+    - 6055:6050
+    environment:
+    - INITIAL_STAGE=2
+    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050,172.28.0.6:7050,172.28.0.7:7050
+    networks:
+      infernet:
+        ipv4_address: 172.28.0.7
+    working_dir: /inferd
+    command:
+    - uv
+    - run
+    - python
+    - run_node.py
+  test_path_finding:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PTH_DIR: test
+    container_name: node_test
+    ports:
+    - 7056:7050
+    - 6056:6050
+    networks:
+      infernet:
+        ipv4_address: 172.28.0.8
+    working_dir: /inferd
+    command:
+    - uv
+    - run
+    - python
+    - test_path_finding.py
+networks:
+  infernet:
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 172.28.0.0/16

@@ -1,0 +1,40 @@
+# inferd.yaml — упрощённый конфиг для разделённого инференса Qwen2
+model_name: Qwen/Qwen2-0.5B
+parts_dir: ./model_parts
+stages: 6
+
+# Описание стадий в порядке выполнения
+stages:
+  - name: node0
+    stage: 0
+    start_layer: 0
+    end_layer: 2
+
+  - name: node1
+    stage: 1
+    start_layer: 3
+    end_layer: 4
+
+  - name: node2
+    stage: 2
+    start_layer: 5
+    end_layer: 23
+
+  - name: node3
+    stage: 2
+    start_layer: 5
+    end_layer: 23
+
+  - name: node4
+    stage: 2
+    start_layer: 5
+    end_layer: 23
+
+  - name: node5
+    stage: 2
+    start_layer: 5
+    end_layer: 23
+
+
+
+    

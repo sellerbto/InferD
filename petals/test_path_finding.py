@@ -1,10 +1,5 @@
 import asyncio
 import random
-import time
-import torch
-
-NUM_STAGES = 3
-NUM_NODES = 5
 
 async def run():
     async def random_task_sender():
@@ -12,7 +7,11 @@ async def run():
         async def post(url, payload):
             async with aiohttp.ClientSession() as session:
                 try:
-                    async with session.post(url, json=payload) as resp:
+                    async with session.post(
+                        url,
+                        json=payload,
+                        headers={'Content-Type': 'application/json'}
+                    ) as resp:
                         return await resp.json()
                 except Exception as e:
                     print(f"Error sending random task: {e}")
@@ -27,8 +26,7 @@ async def run():
             generated_text = ""
             gen_ids = []
 
-            # Первый вызов Stage 0: передаём prompt
-            payload = {'stage': 0, 'input_data': prompt, 'task_id': task_id}
+            payload = {'stage': 0, 'input_data': {'prompt' : prompt}, 'task_id': task_id}
             print(f'#############################################')
             print(f'##########-----------------------############')
             print(f'#############################################')

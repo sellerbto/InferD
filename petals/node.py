@@ -8,7 +8,6 @@ from node_info import NodeInfo
 from path_finder import PathFinder
 from balance import Balancer
 from task_scheduler import TaskScheduler
-from partitioned_models import LAST_STAGE
 
 
 class Node:
@@ -97,7 +96,7 @@ class Node:
         cur_stage = task.stage
         task_result = task.get_result()
         
-        if cur_stage == 2:
+        if cur_stage == self.node_info.num_stages - 1:
             return {'result_for_user': task_result}
         
         next_node = await self.path_finder.find_best_node(stage=cur_stage + 1)

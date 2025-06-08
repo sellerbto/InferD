@@ -3,8 +3,8 @@ import os
 import socket
 from kademlia_client import DistributedHashTableServer, DHTServer
 from node import Node
-from partitioned_models import Stage1, Stage2, Stage3
-
+from partitioned_models import FirstStage, StageInner, LastStage
+import yaml
 
 def get_own_ip() -> str:
     node_ip = os.getenv("NODE_IP")
@@ -38,7 +38,9 @@ async def run_node(node: Node, initial_stage: int):
         raise
 
 async def main():
-    node_stages = 3
+    with open("inferd.yaml") as f:
+        cfg = yaml.safe_load(f)
+    node_stages = len(cfg["stages"])
     node_port = 6050
     dht_port = 7050
     task_dht_port = 7051
