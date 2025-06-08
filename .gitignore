@@ -10,5 +10,4 @@ configs/
 .mypy_cache
 .idea/
 test.py
-*.ipynb
 *.csv
