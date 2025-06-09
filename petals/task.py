@@ -43,15 +43,15 @@ class NNForwardTask(Task):
 
 
 class QwenTask(Task):
-    def __init__(self, id: int, stage: int, input_data):
+    def __init__(self, id: int, model: PartitionedQwen2, stage: int, input_data):
         self.id = id
         self.stage = stage
         self.input_data = input_data
-        self.worker = PartitionedQwen2(stage)
+        self.model = model
         self.result = None
 
     def run(self):
-        out = self.worker.forward(self.input_data)
+        out = self.model.forward(self.input_data)
         if "hidden_meta" in out and "generated_ids" not in out:
             out["generated_ids"] = self.input_data.get("generated_ids", [])
         self.result = out
