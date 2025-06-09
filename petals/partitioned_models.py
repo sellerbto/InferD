@@ -12,7 +12,7 @@ def tensor_to_base64(tensor: torch.Tensor) -> dict:
     array = tensor.detach().cpu().numpy()
     b64 = base64.b64encode(array.tobytes()).decode("utf-8")
     return {
-        "b64":   b64,
+        "b64": b64,
         "dtype": str(array.dtype),
         "shape": list(array.shape),
     }
@@ -100,32 +100,23 @@ from torch.serialization import add_safe_globals
 add_safe_globals([FirstStage, StageInner, LastStage])
 
 class PartitionedQwen2:
-    def __init__(self, stage: int, model_name: str = None, parts_dir: str = None):
-        with open("inferd.yaml") as f:
-            INFERD_CFG = yaml.safe_load(f)
-        cfg = INFERD_CFG
+    def __init__(self, model_name: str, num_stages: int, stage: int, parts_path: str):
         self.stage  = stage
-        self.stage_cfg  = cfg["stages"][stage]
-        self.num_stages = len(cfg["stages"])
+        self.num_stages = num_stages
+        self.parts_path = parts_path
         print(f"PartitionedQwen2: stage {self.stage}, num_stages = {self.num_stages}")
-        self.parts_dir  = parts_dir or cfg["parts_dir"][2:]
-        self.device     = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        # stage 0 и последняя стадия нуждаются в токенизаторе
         if stage == 0 or stage == self.num_stages - 1:
-            self.tokenizer = Qwen2Tokenizer.from_pretrained(cfg["model_name"])
-
-        path = f"{self.parts_dir}/{self.stage_cfg['name']}/model.pth"
-        # path = f"{self.parts_dir}/model.pth"
+            self.tokenizer = Qwen2Tokenizer.from_pretrained(model_name)
         self.model = torch.load(
-            path,
+            self.parts_path,
             map_location=self.device,
             weights_only=False
         )
         self.model.to(self.device).eval()
 
     def _prepare_inputs(self, input_data):
-        # Stage0: принимаем prompt или generated_ids
         if self.stage == 0:
             if isinstance(input_data, str):
                 enc = self.tokenizer(input_data, return_tensors="pt")
@@ -139,7 +130,6 @@ class PartitionedQwen2:
                 lst = input_data["generated_ids"]
                 return lst, torch.tensor([lst], device=self.device, dtype=torch.long)
 
-        # Все остальные стадии: ждём hidden_meta
         if "hidden_meta" in input_data:
             hidden = base64_to_tensor(input_data["hidden_meta"]).to(self.device)
             return input_data.get("generated_ids"), hidden
@@ -160,7 +150,6 @@ class PartitionedQwen2:
         with torch.no_grad():
             out = self.model(model_in, attn_mask, pos_ids)
 
-        # Промежуточные стадии
         if self.stage < self.num_stages - 1:
             if self.stage == 0:
                 return {

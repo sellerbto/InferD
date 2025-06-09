@@ -5,11 +5,9 @@ from node_info import NodeInfo
 class TaskScheduler:
     def __init__(self, 
                 node_info: NodeInfo,
-                dht,
-                task_dht):
+                dht):
         self.node_info = node_info
         self.dht = dht
-        self.task_dht = task_dht
         self.running_tasks_count = 0
 
     def measure_load(self):
@@ -18,9 +16,6 @@ class TaskScheduler:
     async def run_task(self, task: QwenTask):
         cur_stage = self.node_info.stage
         task.run()
-        td_rec = await self.task_dht.get(cur_stage) or {}
-        td_rec[self.node_info.id] = td_rec.get(self.node_info.id, 0) + 1
-        await self.task_dht.set(cur_stage, td_rec)
         self.running_tasks_count += 1
         await self.announce()
         asyncio.create_task(self._finish_task(cur_stage))
@@ -30,12 +25,6 @@ class TaskScheduler:
         # await asyncio.sleep(10)
         self.running_tasks_count -= 1
         await self.announce()
-        td_rec = await self.task_dht.get(cur_stage) or {}
-        if td_rec.get(self.node_info.id, 0) > 1:
-            td_rec[self.node_info.id] -= 1
-        else:
-            td_rec.pop(self.node_info.id, None)
-        await self.task_dht.set(cur_stage, td_rec)
 
     async def announce(self):
         try:

@@ -12,7 +12,8 @@ services:
     - 6050:6050
     environment:
     - INITIAL_STAGE=0
-    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050,172.28.0.6:7050,172.28.0.7:7050
+    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050
+    - NODE_NAME=node0
     networks:
       infernet:
         ipv4_address: 172.28.0.2
@@ -34,7 +35,8 @@ services:
     - 6051:6050
     environment:
     - INITIAL_STAGE=1
-    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050,172.28.0.6:7050,172.28.0.7:7050
+    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050
+    - NODE_NAME=node1
     networks:
       infernet:
         ipv4_address: 172.28.0.3
@@ -56,7 +58,8 @@ services:
     - 6052:6050
     environment:
     - INITIAL_STAGE=2
-    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050,172.28.0.6:7050,172.28.0.7:7050
+    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050
+    - NODE_NAME=node2
     networks:
       infernet:
         ipv4_address: 172.28.0.4
@@ -78,54 +81,11 @@ services:
     - 6053:6050
     environment:
     - INITIAL_STAGE=2
-    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050,172.28.0.6:7050,172.28.0.7:7050
+    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050
+    - NODE_NAME=node3
     networks:
       infernet:
         ipv4_address: 172.28.0.5
-    working_dir: /inferd
-    command:
-    - uv
-    - run
-    - python
-    - run_node.py
-  node4:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        PTH_DIR: node4
-    container_name: node4
-    ports:
-    - 7054:7050
-    - 6054:6050
-    environment:
-    - INITIAL_STAGE=2
-    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050,172.28.0.6:7050,172.28.0.7:7050
-    networks:
-      infernet:
-        ipv4_address: 172.28.0.6
-    working_dir: /inferd
-    command:
-    - uv
-    - run
-    - python
-    - run_node.py
-  node5:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        PTH_DIR: node5
-    container_name: node5
-    ports:
-    - 7055:7050
-    - 6055:6050
-    environment:
-    - INITIAL_STAGE=2
-    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050,172.28.0.6:7050,172.28.0.7:7050
-    networks:
-      infernet:
-        ipv4_address: 172.28.0.7
     working_dir: /inferd
     command:
     - uv
@@ -140,11 +100,13 @@ services:
         PTH_DIR: test
     container_name: node_test
     ports:
-    - 7056:7050
-    - 6056:6050
+    - 7054:7050
+    - 6054:6050
     networks:
       infernet:
-        ipv4_address: 172.28.0.8
+        ipv4_address: 172.28.0.6
+    environment:
+    - NODE_NAME=node_test
     working_dir: /inferd
     command:
     - uv

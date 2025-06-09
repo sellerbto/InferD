@@ -31,11 +31,11 @@ compose = {
 
 bootstrap_addrs = [f"{ip}:7050" for ip in ips]
 for idx, st in enumerate(stages):
-    svc_name     = st["name"]
-    initial_stage = st["stage"]
-    host_7050    = str(7050 + idx)
-    host_6050    = str(6050 + idx)
-    pth_dir      = svc_name
+    svc_name       = st["name"]
+    initial_stage  = st["stage"]
+    host_7050      = str(7050 + idx)
+    host_6050      = str(6050 + idx)
+    pth_dir        = svc_name
 
     compose["services"][svc_name] = {
         "build": {
@@ -52,7 +52,8 @@ for idx, st in enumerate(stages):
         ],
         "environment": [
             f"INITIAL_STAGE={initial_stage}",
-            f"BOOTSTRAP_NODES={','.join(bootstrap_addrs)}"
+            f"BOOTSTRAP_NODES={','.join(bootstrap_addrs)}",
+            f"NODE_NAME={svc_name}"
         ],
         "networks": {
             "infernet": {"ipv4_address": ips[idx]}
@@ -61,12 +62,13 @@ for idx, st in enumerate(stages):
         "command": ["uv", "run", "python", "run_node.py"]
     }
 
+
 compose["services"]["test_path_finding"] = {
     "build": {
         "context": ".",
         "dockerfile": "Dockerfile",
         "args": {
-            "PTH_DIR": "test"  # там ничего нет, просто для сборки
+            "PTH_DIR": "test"
         }
     },
     "container_name": "node_test",
@@ -77,6 +79,9 @@ compose["services"]["test_path_finding"] = {
     "networks": {
         "infernet": {"ipv4_address": str(start + num_stages)}
     },
+    "environment": [
+        "NODE_NAME=node_test"
+    ],
     "working_dir": "/inferd",
     "command": ["uv", "run", "python", "test_path_finding.py"]
 }

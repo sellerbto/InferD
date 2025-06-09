@@ -17,23 +17,26 @@ class PathFinder:
         self.balancer = balancer
 
     async def find_best_chain(self) -> list:
-        # todo: D^* algorithm...
-        chain = []
-        for stage in range(self.node_info.num_stages):
-            record = await self.dht.get(str(stage)) or {}
-            if not record:
-                await self.balancer.rebalance()
-                record = await self.dht.get(str(stage)) or {}
-                if not record:
-                    raise RuntimeError(f"No available servers for stage {stage} after rebalance")
-            ip_port, _ = min(record.items(), key=lambda x: x[1]['load'])
-            ip, port = parse_ip_port(ip_port)
-            chain.append((ip, port))
-        return chain
+        raise NotImplementedError("This method is not implemented yet")
+        # # todo: D^* algorithm...
+        # chain = []
+        # for stage in range(self.node_info.num_stages):
+        #     record = await self.dht.get(str(stage)) or {}
+        #     if not record:
+        #         await self.balancer.rebalance()
+        #         record = await self.dht.get(str(stage)) or {}
+        #         if not record:
+        #             raise RuntimeError(f"No available servers for stage {stage} after rebalance")
+        #     ip_port, _ = min(record.items(), key=lambda x: x[1]['load'])
+        #     ip, port = parse_ip_port(ip_port)
+        #     chain.append((ip, port))
+        # return chain
 
     async def find_best_node(self, stage: int, retry: int = 3):
         # todo: D^* algorithm...
-        if retry == 0:
+        print(f'Find best node: {stage=}, {retry=}')
+        if retry <= 0:
+            raise RuntimeError(f"Cannot find node for stage {stage} after 3 retries")
             print(f'Try to reassign node')
             dht_map = await self.dht.get_all() 
             lmin, lmax, smin, smax = await min_max_load_stage(self.node_info, dht_map)
@@ -62,7 +65,7 @@ class PathFinder:
             if None in [ip, port, old_stage]:
                 raise Exception('No nodes to reassign')
             print(f'Try to reassign node {ip}:{port} from {old_stage} to {stage}')
-            await self.reassign_node(ip, port, stage)
+            # await self.reassign_node(ip, port, stage)
             # raise Exception('3 tries to find node with stage {stage}, but not found...')
 
         print(f'DHT: {await self.dht.get_all()}')
@@ -77,8 +80,7 @@ class PathFinder:
             print(f'Rebalancing result: {rebalance_verbose}')
             print(f'Retry')
             return await self.find_best_node(stage, retry-1)
-        else:
-            print(f'Found stage {stage}: {record}')
+        print(f'Found stage {stage}: {record}')
         ip_port, _ = min(record.items(), key=lambda x: x[1]['load'])
         # await asyncio.sleep(1)
         return parse_ip_port(ip_port)

@@ -40,24 +40,29 @@ async def run_node(node: Node, initial_stage: int):
 async def main():
     with open("inferd.yaml") as f:
         cfg = yaml.safe_load(f)
-    node_stages = len(cfg["stages"])
+    node_stages = int(cfg["stages_count"])
+    model_name = cfg["model_name"]
     node_port = 6050
     dht_port = 7050
-    task_dht_port = 7051
-    capacity = 100
-    rebalance_period = 10
+    
+    rebalance_period = 2
     bootstrap_timeout = 4.0
 
     node_ip = get_own_ip()
-    initial_stage = int(os.getenv("INITIAL_STAGE", 0))
+    initial_stage = os.getenv("INITIAL_STAGE")
+    if initial_stage is None:
+        raise RuntimeError("Переменная окружения INITIAL_STAGE не задана")
+    node_name = os.getenv("NODE_NAME")
+    if node_name is None:
+        raise RuntimeError("Имя ноды NODE_NAME не задано")
+
+    capacity = 0
     bootstrap_nodes = parse_bootstrap_nodes(
         os.getenv("BOOTSTRAP_NODES", ""),
         default_port=dht_port
     )
-    task_bootstrap_nodes = parse_bootstrap_nodes(
-        os.getenv("TASK_BOOTSTRAP_NODES", ""),
-        default_port=task_dht_port
-    )
+
+    
     dht = DistributedHashTableServer(
         port=dht_port,
         num_stages=node_stages,
@@ -66,20 +71,15 @@ async def main():
     )
     await dht.start()
 
-    task_dht = DHTServer(
-        port=task_dht_port,
-        bootstrap_nodes=task_bootstrap_nodes,
-        bootstrap_timeout=bootstrap_timeout
-    )
-    await task_dht.start()
-
     node = Node(
         node_ip,
         node_port,
+        node_name,
+        model_name,
+        initial_stage,
         node_stages,
         capacity,
         dht,
-        task_dht,
         rebalance_period
     )
 
