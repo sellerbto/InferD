@@ -153,7 +153,7 @@ class Node:
 
         runner = web.AppRunner(self.app)
         await runner.setup()
-        site = web.TCPSite(runner, self.node_info.ip, self.node_info.port)
+        site = web.TCPSite(runner, "0.0.0.0", self.node_info.port)
         await site.start()
         print(f"Node {self.node_info.id}: HTTP API on {self.node_info.ip}:{self.node_info.port}")
 

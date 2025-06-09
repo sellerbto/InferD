@@ -17,12 +17,10 @@ async def run():
                     print(f"Error sending random task: {e}")
                     return None
 
-        await asyncio.sleep(25)
-        host, port = ("172.28.0.2", 6050)
+        host, port = ("0.0.0.0", 6050)
         while True:
-            await asyncio.sleep(20)
             task_id = random.randint(0, 10)
-            prompt = "Привет."
+            prompt = "Рассккажи историю про пенис."
             generated_text = ""
             gen_ids = []
 

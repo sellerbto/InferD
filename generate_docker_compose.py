@@ -63,28 +63,28 @@ for idx, st in enumerate(stages):
     }
 
 
-compose["services"]["test_path_finding"] = {
-    "build": {
-        "context": ".",
-        "dockerfile": "Dockerfile",
-        "args": {
-            "PTH_DIR": "test"
-        }
-    },
-    "container_name": "node_test",
-    "ports": [
-        f"{7050 + num_stages}:7050",
-        f"{6050 + num_stages}:6050",
-    ],
-    "networks": {
-        "infernet": {"ipv4_address": str(start + num_stages)}
-    },
-    "environment": [
-        "NODE_NAME=node_test"
-    ],
-    "working_dir": "/inferd",
-    "command": ["uv", "run", "python", "test_path_finding.py"]
-}
+# compose["services"]["test_path_finding"] = {
+#     "build": {
+#         "context": ".",
+#         "dockerfile": "Dockerfile",
+#         "args": {
+#             "PTH_DIR": "test"
+#         }
+#     },
+#     "container_name": "node_test",
+#     "ports": [
+#         f"{7050 + num_stages}:7050",
+#         f"{6050 + num_stages}:6050",
+#     ],
+#     "networks": {
+#         "infernet": {"ipv4_address": str(start + num_stages)}
+#     },
+#     "environment": [
+#         "NODE_NAME=node_test"
+#     ],
+#     "working_dir": "/inferd",
+#     "command": ["uv", "run", "python", "test_path_finding.py"]
+# }
 
 with open(COMPOSE_FILENAME, 'w') as f:
     yaml.safe_dump(compose, f, sort_keys=False, default_flow_style=False)
