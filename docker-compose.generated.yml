@@ -17,12 +17,9 @@ services:
     networks:
       infernet:
         ipv4_address: 172.28.0.2
-    working_dir: /inferd
     command:
-    - uv
-    - run
-    - python
     - run_node.py
+    
   node1:
     build:
       context: .
@@ -40,12 +37,10 @@ services:
     networks:
       infernet:
         ipv4_address: 172.28.0.3
-    working_dir: /inferd
     command:
-    - uv
-    - run
-    - python
     - run_node.py
+    
+
   node2:
     build:
       context: .
@@ -63,12 +58,9 @@ services:
     networks:
       infernet:
         ipv4_address: 172.28.0.4
-    working_dir: /inferd
     command:
-    - uv
-    - run
-    - python
     - run_node.py
+   
   node3:
     build:
       context: .
@@ -86,12 +78,9 @@ services:
     networks:
       infernet:
         ipv4_address: 172.28.0.5
-    working_dir: /inferd
     command:
-    - uv
-    - run
-    - python
     - run_node.py
+
   test_path_finding:
     build:
       context: .
@@ -107,11 +96,7 @@ services:
         ipv4_address: 172.28.0.6
     environment:
     - NODE_NAME=node_test
-    working_dir: /inferd
     command:
-    - uv
-    - run
-    - python
     - test_path_finding.py
 networks:
   infernet:
