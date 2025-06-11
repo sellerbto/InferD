@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package qwen3;
+
+message TensorBlob {
+  bytes data = 1;
+}
+
+message LayerRequest {
+  TensorBlob hidden_states = 1;
+  TensorBlob attention_mask = 2;
+  TensorBlob cache_position = 3;
+  TensorBlob cos_embedding = 4;
+  TensorBlob sin_embedding = 5;
+  string session_id = 6;
+}
+
+message LayerResponse {
+  TensorBlob hidden_states = 1;
+}
+
+service Qwen3Layer {
+  rpc ProcessLayer(LayerRequest) returns (LayerResponse);
+}

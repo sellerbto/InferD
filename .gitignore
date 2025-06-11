@@ -11,3 +11,4 @@ configs/
 .idea/
 test.py
 *.csv
+*.ipynb
