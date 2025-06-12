@@ -17,9 +17,10 @@ services:
     networks:
       infernet:
         ipv4_address: 172.28.0.2
+
     command:
+
     - run_node.py
-    
   node1:
     build:
       context: .
@@ -37,10 +38,10 @@ services:
     networks:
       infernet:
         ipv4_address: 172.28.0.3
-    command:
-    - run_node.py
-    
 
+    command:
+
+    - run_node.py
   node2:
     build:
       context: .
@@ -58,9 +59,10 @@ services:
     networks:
       infernet:
         ipv4_address: 172.28.0.4
+
     command:
+
     - run_node.py
-   
   node3:
     build:
       context: .
@@ -78,26 +80,10 @@ services:
     networks:
       infernet:
         ipv4_address: 172.28.0.5
-    command:
-    - run_node.py
 
-  test_path_finding:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        PTH_DIR: test
-    container_name: node_test
-    ports:
-    - 7054:7050
-    - 6054:6050
-    networks:
-      infernet:
-        ipv4_address: 172.28.0.6
-    environment:
-    - NODE_NAME=node_test
     command:
-    - test_path_finding.py
+
+    - run_node.py
 networks:
   infernet:
     driver: bridge
