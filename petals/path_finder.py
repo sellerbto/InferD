@@ -8,9 +8,9 @@ from balance import Balancer
 from utils import *
 
 class PathFinder:
-    def __init__(self, 
+    def __init__(self,
                 dht : DistributedHashTableServer,
-                node_info : NodeInfo, 
+                node_info : NodeInfo,
                 balancer: Balancer):
         self.dht = dht
         self.node_info = node_info
@@ -36,12 +36,12 @@ class PathFinder:
         # todo: D^* algorithm...
         print(f'Find best node: {stage=}, {retry=}')
         if retry <= 0:
-            raise RuntimeError(f"Cannot find node for stage {stage} after 3 retries")
+            # raise RuntimeError(f"Cannot find node for stage {stage} after 3 retries")
             print(f'Try to reassign node')
-            dht_map = await self.dht.get_all() 
+            dht_map = await self.dht.get_all()
             lmin, lmax, smin, smax = await min_max_load_stage(self.node_info, dht_map)
             print(lmin, lmax, smin, smax)
-    
+
             potential_nodes_to_reassign = dht_map[str(smin)].keys()
             print(f'potential_nodes_to_reassign = {potential_nodes_to_reassign}')
             ip, port, old_stage = None, None, None
@@ -65,7 +65,8 @@ class PathFinder:
             if None in [ip, port, old_stage]:
                 raise Exception('No nodes to reassign')
             print(f'Try to reassign node {ip}:{port} from {old_stage} to {stage}')
-            # await self.reassign_node(ip, port, stage)
+            await self.reassign_node(ip, port, stage)
+            return
             # raise Exception('3 tries to find node with stage {stage}, but not found...')
 
         print(f'DHT: {await self.dht.get_all()}')
@@ -73,9 +74,9 @@ class PathFinder:
         if not record:
             print(f'No peers available for stage {stage}. Try to rebalance this node with stage = {self.node_info.stage} to stage {stage}')
             # надо какую-то ноду назначить на этот стейдж, сейчас у текущей ноды берется rebalance в надежде что эта нода перестроится на пустой стедж
-            # raise RuntimeError(f"No peers available for stage {stage}") 
+            # raise RuntimeError(f"No peers available for stage {stage}")
             old_stage = self.node_info.stage
-            rebalanced = await self.balancer.rebalance() 
+            rebalanced = await self.balancer.rebalance()
             rebalance_verbose = f'stage changed from {old_stage} to {self.node_info.stage}' if rebalanced else 'nothing changed'
             print(f'Rebalancing result: {rebalance_verbose}')
             print(f'Retry')
@@ -84,9 +85,9 @@ class PathFinder:
         ip_port, _ = min(record.items(), key=lambda x: x[1]['load'])
         # await asyncio.sleep(1)
         return parse_ip_port(ip_port)
-    
+
     async def reassign_node(self, ip: str, http_port: int, to_stage: int):
         url = f'http://{ip}:{http_port}/reassign'
         async with ClientSession() as session:
             async with session.post(url, json={'to': to_stage}) as resp:
-                return await resp.json() 
+                return await resp.json()

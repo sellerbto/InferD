@@ -12,14 +12,16 @@ services:
     - 6050:6050
     environment:
     - INITIAL_STAGE=0
-    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050
+    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050
     - NODE_NAME=node0
+    volumes:
+    - ./model_parts:/inferd/model_parts
     networks:
       infernet:
         ipv4_address: 172.28.0.2
+    working_dir: /inferd
     command:
     - run_node.py
-    
   node1:
     build:
       context: .
@@ -32,15 +34,16 @@ services:
     - 6051:6050
     environment:
     - INITIAL_STAGE=1
-    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050
+    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050
     - NODE_NAME=node1
+    volumes:
+    - ./model_parts:/inferd/model_parts
     networks:
       infernet:
         ipv4_address: 172.28.0.3
+    working_dir: /inferd
     command:
     - run_node.py
-    
-
   node2:
     build:
       context: .
@@ -53,51 +56,16 @@ services:
     - 6052:6050
     environment:
     - INITIAL_STAGE=2
-    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050
+    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050
     - NODE_NAME=node2
+    volumes:
+    - ./model_parts:/inferd/model_parts
     networks:
       infernet:
         ipv4_address: 172.28.0.4
+    working_dir: /inferd
     command:
     - run_node.py
-   
-  node3:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        PTH_DIR: node3
-    container_name: node3
-    ports:
-    - 7053:7050
-    - 6053:6050
-    environment:
-    - INITIAL_STAGE=2
-    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050
-    - NODE_NAME=node3
-    networks:
-      infernet:
-        ipv4_address: 172.28.0.5
-    command:
-    - run_node.py
-
-  test_path_finding:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        PTH_DIR: test
-    container_name: node_test
-    ports:
-    - 7054:7050
-    - 6054:6050
-    networks:
-      infernet:
-        ipv4_address: 172.28.0.6
-    environment:
-    - NODE_NAME=node_test
-    command:
-    - test_path_finding.py
 networks:
   infernet:
     driver: bridge

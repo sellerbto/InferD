@@ -22,7 +22,7 @@ class Node:
                  capacity: int,
                  dht: DistributedHashTableServer,
                  rebalance_period: int = 10):
-        
+
         print(f'Type initial stage: {type(initial_stage)}')
         initial_stage = int(initial_stage)
 
@@ -40,14 +40,14 @@ class Node:
 
         self.dht = dht
         self.task_scheduler = TaskScheduler(self.node_info, self.dht)
-        self.balancer = Balancer(self.dht, self.node_info, self.task_scheduler, 5)
+        self.balancer = Balancer(self.dht, self.node_info, self.task_scheduler, self.change_stage, 5)
         self.path_finder = PathFinder(self.dht, self.node_info, self.balancer)
         self._rebalance_task = None
         print(f'num_stages = {num_stages}')
-        self.model = PartitionedQwen2(self.node_info.model_name, 
+        self.model = PartitionedQwen2(self.node_info.model_name,
                                     num_stages,
                                     initial_stage,
-                                    f'model_parts/{name}/model.pth')
+                                    f'model_parts/stage{initial_stage}/model.pth')
 
         self.app = web.Application()
         self.app.add_routes([
@@ -58,17 +58,17 @@ class Node:
     async def rebalance_task(self):
         await asyncio.sleep(0.5)
         while True:
-            await asyncio.sleep(10)
             await self.rebalance()
+            await asyncio.sleep(10)
 
     async def change_stage(self, new_stage):
         record = await self.dht.get(str(self.node_info.stage)) or {}
         record.pop(self.node_info.id, None)
 
-        self.model = PartitionedQwen2(self.node_info.model_name, 
+        self.model = PartitionedQwen2(self.node_info.model_name,
                                     self.node_info.num_stages,
                                     new_stage,
-                                    f'model_parts/{self.node_info.model_name}/model.pth')
+                                    f'model_parts/stage{new_stage}/model.pth')
 
         await self.dht.set(str(self.node_info.stage), record)
 
@@ -104,7 +104,7 @@ class Node:
         next_node = await self.path_finder.find_best_node(stage=stage)
         if not next_node:
             return {'error': 'No next node available'}
-        
+
         ip, port = next_node
         url = f"http://{ip}:{port}/nn_forward"
         payload = {
@@ -115,18 +115,18 @@ class Node:
 
         response = await self.post(url, payload)
         return response
-    
+
     async def run_task(self, task: QwenTask):
         print(f'Node {self.node_info.id} running task {task.id}')
         await self.task_scheduler.run_task(task)
         cur_stage = task.stage
         task_result = task.get_result()
-        
+
         print(f'Node {self.node_info.id}, cur_stage = {cur_stage}, num_stages = {self.node_info.num_stages}')
-            
+
         if cur_stage == self.node_info.num_stages - 1:
             return {'result_for_user': task_result}
-        
+
         return await self.send_to_next_node(task, cur_stage+1)
 
     async def handle_nn_forward(self, request):
@@ -139,7 +139,7 @@ class Node:
         if stage != self.node_info.stage:
             print(f'Error: Node at stage {self.node_info.stage} cannot handle stage {stage}')
             return await self.send_to_next_node(task, stage) # пересылаем на ноду с нужным стейджом
-        
+
         resp = await self.run_task(task)
         return web.json_response(resp)
 

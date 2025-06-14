@@ -6,6 +6,13 @@ import numpy as np
 from typing import List
 from torch import nn
 import yaml
+from transformers import (
+    AutoTokenizer,
+    LogitsProcessorList,
+    TemperatureLogitsWarper,
+    TopKLogitsWarper,
+    TopPLogitsWarper,
+)
 
 
 def tensor_to_base64(tensor: torch.Tensor) -> dict:
@@ -158,11 +165,28 @@ class PartitionedQwen2:
                 }
             return {"hidden_meta": tensor_to_base64(out)}
 
-        print(f"Stage {self.stage}, num stages: {self.num_stages}")
-        token_id  = torch.argmax(out[:, -1, :], dim=-1).item()
+        logits = out[:, -1, :]
+        token_id_tensor = self._choose_next(logits)  # shape [1,1]
+        token_id = token_id_tensor.item()
         token_str = self.tokenizer.decode(token_id)
+
         return {
             "next_token_id":  token_id,
             "next_token_str": token_str,
             "generated_ids":  gen_ids + [token_id]
         }
+
+    def _choose_next(self, logits: torch.Tensor) -> torch.Tensor:
+        logit_processors = LogitsProcessorList(
+            [
+                TemperatureLogitsWarper(0.6),
+                TopKLogitsWarper(20),
+                TopPLogitsWarper(0.95),
+            ]
+        )
+        _dummy_input_ids = torch.zeros((1, 1), dtype=torch.long, device=self.device)
+        logits = logits.clone()
+        logits = logit_processors(_dummy_input_ids, logits)
+        probs = torch.softmax(logits, dim=-1)
+        next_token_id = torch.multinomial(probs, num_samples=1)
+        return next_token_id
