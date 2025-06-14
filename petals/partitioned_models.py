@@ -5,7 +5,14 @@ import base64
 import numpy as np
 from typing import List
 from torch import nn
-import yaml
+import torch
+import torch.nn.functional as F
+from transformers import (
+    LogitsProcessorList,
+    RepetitionPenaltyLogitsProcessor,
+    TopKLogitsWarper,
+    TopPLogitsWarper,
+)
 
 
 def tensor_to_base64(tensor: torch.Tensor) -> dict:
@@ -143,26 +150,61 @@ class PartitionedQwen2:
         return mask, pos
 
     def forward(self, inputs: dict) -> dict:
+        """
+        Execute one pipeline step and return the payload for the next stage
+        (or back to the client if this is the final stage).
+        """
+        # 1. Prepare inputs
         gen_ids, model_in = self._prepare_inputs(inputs)
         seq_len = model_in.size(1) if isinstance(model_in, torch.Tensor) else len(model_in)
         attn_mask, pos_ids = self._create_attention_mask(seq_len)
 
+        # 2. Run this stage
         with torch.no_grad():
             out = self.model(model_in, attn_mask, pos_ids)
 
+        # 3. If not last stage, pass along hidden states
         if self.stage < self.num_stages - 1:
             if self.stage == 0:
                 return {
                     "hidden_meta":   tensor_to_base64(out),
-                    "generated_ids": gen_ids
+                    "generated_ids": gen_ids,
                 }
-            return {"hidden_meta": tensor_to_base64(out)}
+            return {
+                "hidden_meta": tensor_to_base64(out)
+            }
 
-        print(f"Stage {self.stage}, num stages: {self.num_stages}")
-        token_id  = torch.argmax(out[:, -1, :], dim=-1).item()
-        token_str = self.tokenizer.decode(token_id)
+        # 4. Last stage: sample next token with temperature, top-k, top-p, and repetition penalty
+     
+
+        # a) Build a proper input_ids tensor of shape (batch_size=1, seq_len)
+        #    from your Python list of ints.
+        input_ids_tensor = torch.tensor([gen_ids],
+                                        dtype=torch.long,
+                                        device=self.device)
+
+        # b) Extract and temperature-scale logits
+        logits = out[:, -1, :] / 0.8  # temperature = 0.8
+
+        # c) Apply repetition penalty
+        processors = LogitsProcessorList([
+            RepetitionPenaltyLogitsProcessor(penalty=1.2)
+        ])
+        logits = processors(input_ids_tensor, logits)
+
+        # d) Apply top-k and top-p (nucleus) filtering
+        logits = TopKLogitsWarper(top_k=50)(input_ids_tensor, logits)
+        logits = TopPLogitsWarper(top_p=0.9)(input_ids_tensor, logits)
+
+        # e) Sample the next token
+        probs    = F.softmax(logits, dim=-1)
+        token_id = torch.multinomial(probs, num_samples=1).item()
+        token_str = self.tokenizer.decode([token_id], skip_special_tokens=True)
+
         return {
             "next_token_id":  token_id,
             "next_token_str": token_str,
-            "generated_ids":  gen_ids + [token_id]
+            "generated_ids":  gen_ids + [token_id],
         }
+
+
