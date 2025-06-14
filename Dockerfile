@@ -8,10 +8,10 @@ RUN uv sync
 
 COPY petals .
 
-ARG PTH_DIR
+# ARG PTH_DIR
 
-COPY model_parts/${PTH_DIR} model_parts/${PTH_DIR}
+# COPY model_parts/${PTH_DIR} model_parts/${PTH_DIR}
 
-EXPOSE 6050 7050/udp 7051/udp  
+EXPOSE 6050 7050/udp 7051/udp
 
 ENTRYPOINT ["uv", "run", "--no-sync", "python"]

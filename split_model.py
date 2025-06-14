@@ -76,7 +76,10 @@ add_safe_globals([FirstStage, StageInner, LastStage])
 with open("petals/inferd.yaml") as f:
     cfg = yaml.safe_load(f)
 parts_dir = cfg["parts_dir"]
-stages   = cfg["stages"]
+print(cfg['stages'])
+stages = {c['name']: (c['start_layer'], c['end_layer'])  for c in cfg["stages"]}
+nodes = cfg['nodes']
+
 
 full = Qwen2ForCausalLM.from_pretrained(cfg["model_name"])
 embed_tokens = full.model.embed_tokens
@@ -89,9 +92,10 @@ lm_head       = full.lm_head
 os.mkdir(parts_dir)
 print(f"✔ Loaded full model: layers = {len(all_layers)}")
 num_stages = len(stages)
+print(stages)
 for idx, st in enumerate(stages):
-    name    = st["name"]
-    sl, el  = st["start_layer"], st["end_layer"]
+    name = st
+    sl, el  = stages[st]
     sublayers = all_layers[sl:el+1]
 
     if idx == 0:
@@ -102,8 +106,8 @@ for idx, st in enumerate(stages):
         module = StageInner(rotary_emb, sublayers)
 
     module.eval()
-    os.mkdir(f"{parts_dir}/{name}")
-    path_to_save = f"{parts_dir}/{name}/model.pth"
+    os.mkdir(f"{parts_dir}/stage{idx}")
+    path_to_save = f"{parts_dir}/stage{idx}/model.pth"
     torch.save(module, path_to_save)
     print(f"Saved {path_to_save}")
 os.mkdir(f"{parts_dir}/test")

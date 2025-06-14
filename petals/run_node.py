@@ -40,13 +40,13 @@ async def run_node(node: Node, initial_stage: int):
 async def main():
     with open("inferd.yaml") as f:
         cfg = yaml.safe_load(f)
-    node_stages = int(cfg["stages_count"])
+    node_stages = len(cfg["stages"])
     model_name = cfg["model_name"]
     node_port = 6050
     dht_port = 7050
-    
+
     rebalance_period = 2
-    bootstrap_timeout = 4.0
+    bootstrap_timeout = 1.0
 
     node_ip = get_own_ip()
     initial_stage = os.getenv("INITIAL_STAGE")
@@ -62,7 +62,7 @@ async def main():
         default_port=dht_port
     )
 
-    
+
     dht = DistributedHashTableServer(
         port=dht_port,
         num_stages=node_stages,
@@ -84,6 +84,6 @@ async def main():
     )
 
     await run_node(node, initial_stage)
-        
+
 if __name__ == "__main__":
     asyncio.run(main())
