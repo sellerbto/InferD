@@ -20,7 +20,7 @@ async def run():
         host, port = ("0.0.0.0", 6050)
         while True:
             task_id = random.randint(0, 10)
-            prompt = "Рассккажи историю про пенис."
+            prompt = "Рассккажи историю про кошку."
             generated_text = ""
             gen_ids = []
 
