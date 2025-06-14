@@ -1,74 +1,120 @@
 import asyncio
-import random
+import aiohttp
+import sys
+import uuid
+import time
+from transformers import AutoTokenizer
+from prompt_toolkit import PromptSession
+from prompt_toolkit.styles import Style
+from prompt_toolkit.patch_stdout import patch_stdout
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.shortcuts import print_formatted_text
+from colorama import init, Fore, Style as ColorStyle
 
-async def run():
-    async def random_task_sender():
-        import aiohttp
-        async def post(url, payload):
-            async with aiohttp.ClientSession() as session:
-                try:
-                    async with session.post(
-                        url,
-                        json=payload,
-                        headers={'Content-Type': 'application/json'}
-                    ) as resp:
-                        return await resp.json()
-                except Exception as e:
-                    print(f"Error sending random task: {e}")
-                    return None
+# Initialize colorama
+init(autoreset=True)
 
-        host, port = ("0.0.0.0", 6050)
-        while True:
-            task_id = random.randint(0, 10)
-            prompt = "Рассккажи историю про пенис."
-            generated_text = ""
-            gen_ids = []
+# Load Qwen-2-0.5B tokenizer for chat templating
+TOKENIZER_NAME = "Qwen/Qwen2-0.5B"
+print(f"Loading tokenizer '{TOKENIZER_NAME}'...")
+tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_NAME)
+print("Tokenizer loaded.\n")
 
-            payload = {'stage': 0, 'input_data': {'prompt' : prompt}, 'task_id': task_id}
-            print(f'#############################################')
-            print(f'##########-----------------------############')
-            print(f'#############################################')
-            print(">>> send:", payload)
-            resp = await post(f"http://{host}:{port}/nn_forward", payload)
-            if not resp:
-                print("Stage0 error")
-                continue
-            print(f'Resp = {resp}')
-            resp = resp['result_for_user']
-            nxt = resp.get('next_token_str', "")
-            
-            gen_ids = resp.get('generated_ids', [])
-            if nxt == "":
-                print("Received empty token, done.")
-                print("Result:", generated_text)
-            else:
-                generated_text += nxt
-                for _ in range(49):
-                    payload = {'stage': 0, 'input_data': {'generated_ids': gen_ids}, 'task_id': task_id}
-                    print(">>> send:")
-                    resp = await post(f"http://{host}:{port}/nn_forward", payload)
-                    if not resp:
-                        print("Stage0 error")
-                        break
-                    
-                    resp = resp['result_for_user']
-                    nxt = resp['next_token_str']
-                    gen_ids = resp.get('generated_ids', [])
-                    if nxt == "":
-                        break
-                    generated_text += nxt
-                    print(">>> Generated:", generated_text)
+# HTTP endpoint
+HOST = "0.0.0.0"
+PORT = 6050
+URL = f"http://{HOST}:{PORT}/nn_forward"
 
-                print("Generated text:", generated_text)
+# Prompt toolkit style
+def get_style():
+    return Style.from_dict({
+        'prompt': '#00aa00 bold',
+        'ai': '#0055ff italic',
+        'error': '#ff0000 bold'
+    })
 
-    sender = asyncio.create_task(random_task_sender())
+async def send_request(session, payload):
     try:
-        await asyncio.gather(sender)
-    except asyncio.CancelledError:
-        print("Shutting down...")
+        async with session.post(URL, json=payload, headers={"Content-Type": "application/json"}) as resp:
+            return await resp.json()
+    except Exception as e:
+        print_formatted_text(HTML(f"<error>[Error] {e}</error>"))
+        return None
+
+async def chat():
+    session = PromptSession()
+    style = get_style()
+    print_formatted_text(HTML("<ai>🤖 Welcome! Ask your question.</ai>"))
+
+    async with aiohttp.ClientSession() as http_session:
+        while True:
+            try:
+                with patch_stdout():
+                    user_msg = await session.prompt_async(HTML('<prompt>You:</prompt> '), style=style)
+            except (EOFError, KeyboardInterrupt):
+                print_formatted_text(HTML("<ai>👋 Goodbye!</ai>"))
+                return
+
+            prompt_text = user_msg.strip()
+            if prompt_text.lower() in ("exit", "quit"):
+                print_formatted_text(HTML("<ai>👋 Goodbye!</ai>"))
+                return
+
+            # Build messages and apply chat template
+            messages = [{"role": "user", "content": prompt_text}]
+            template = tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+                enable_thinking=False
+            )
+
+            task_id = str(uuid.uuid4())
+            payload = {'stage': 0, 'input_data': {'prompt': template}, 'task_id': task_id}
+            print_formatted_text(HTML("<status>[Sending request...]</status>"))
+            response = await send_request(http_session, payload)
+
+            if not response or 'result_for_user' not in response:
+                print_formatted_text(HTML("<error>[Error] No response.</error>"))
+                continue
+
+            result = response['result_for_user']
+            gen_ids = result.get('generated_ids', [])
+            next_token = result.get('next_token_str', '')
+
+            print_formatted_text(HTML('<ai>AI:</ai> '), end='')
+
+            # Stream with inline token count and timer (non-disruptive)
+            start_time = time.time()
+            token_count = 0
+            try:
+                while next_token:
+                    # Print the token
+                    print(next_token, end='', flush=True)
+                    token_count += 1
+                    elapsed = time.time() - start_time
+                    # Print inline count/time in dim color
+                    print(ColorStyle.DIM + f"[{token_count} tokens | {elapsed:.2f}s]" + ColorStyle.RESET_ALL, end='', flush=True)
+
+                    # Request next token
+                    payload = {'stage': 0, 'input_data': {'generated_ids': gen_ids}, 'task_id': task_id}
+                    response = await send_request(http_session, payload)
+                    if not response or 'result_for_user' not in response:
+                        print_formatted_text(HTML("\n<error>[Stream error]</error>"))
+                        break
+                    data = response['result_for_user']
+                    next_token = data.get('next_token_str', '')
+                    gen_ids = data.get('generated_ids', [])
+            except KeyboardInterrupt:
+                print()  # newline
+                print_formatted_text(HTML("<error>⏹️ Interrupted.</error>"))
+
+            # Ensure newline after answer
+            print()  
 
 if __name__ == "__main__":
     try:
-        asyncio.run(run())
+        asyncio.run(chat())
     except KeyboardInterrupt:
-        print("Interrupted by user.")
+        print(Fore.YELLOW + "\n[Exited by user]" + ColorStyle.RESET_ALL)
+        sys.exit(0)
