@@ -10,11 +10,15 @@ with open(INFERD_CONFIG, 'r') as f:
     cfg = yaml.safe_load(f)
 
 stages = cfg["stages"]
-num_stages = len(stages)
+
+nodes = cfg['nodes']
+num_nodes = len(nodes)
+
+
 
 net   = ipaddress.ip_network(NETWORK_SUBNET)
 start = ipaddress.IPv4Address(IP_START)
-ips   = [str(start + i) for i in range(num_stages)]
+ips   = [str(start + i) for i in range(num_nodes)]
 
 compose = {
     "version": "3.8",
@@ -30,7 +34,8 @@ compose = {
 }
 
 bootstrap_addrs = [f"{ip}:7050" for ip in ips]
-for idx, st in enumerate(stages):
+
+for idx, st in enumerate(nodes):
     svc_name       = st["name"]
     initial_stage  = st["stage"]
     host_7050      = str(7050 + idx)
@@ -58,8 +63,7 @@ for idx, st in enumerate(stages):
         "networks": {
             "infernet": {"ipv4_address": ips[idx]}
         },
-        "working_dir": "/inferd",
-        "command": ["uv", "run", "python", "run_node.py"]
+        "command": ["run_node.py"]
     }
 
 

@@ -1,92 +1,108 @@
-version: '3.8'
+version: "3.8"
 services:
   node0:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        PTH_DIR: node0
     container_name: node0
     ports:
-    - 7050:7050
-    - 6050:6050
+      - 7050:7050
+      - 6050:6050
     environment:
-    - INITIAL_STAGE=0
-    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050
-    - NODE_NAME=node0
+      - INITIAL_STAGE=0
+      - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050
+      - NODE_NAME=node0
+    volumes:
+      - ./petals/models/inferd-qwen3:/models/inferd-qwen3
     networks:
       infernet:
         ipv4_address: 172.28.0.2
-
     command:
+      - run_node.py
 
-    - run_node.py
   node1:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        PTH_DIR: node1
     container_name: node1
     ports:
-    - 7051:7050
-    - 6051:6050
+      - 7051:7050
+      - 6051:6050
     environment:
-    - INITIAL_STAGE=1
-    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050
-    - NODE_NAME=node1
+      - INITIAL_STAGE=1
+      - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050
+      - NODE_NAME=node1
+    volumes:
+      - ./petals/models/inferd-qwen3:/models/inferd-qwen3
     networks:
       infernet:
         ipv4_address: 172.28.0.3
-
     command:
+      - run_node.py
 
-    - run_node.py
   node2:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        PTH_DIR: node2
     container_name: node2
     ports:
-    - 7052:7050
-    - 6052:6050
+      - 7052:7050
+      - 6052:6050
     environment:
-    - INITIAL_STAGE=2
-    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050
-    - NODE_NAME=node2
+      - INITIAL_STAGE=2
+      - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050
+      - NODE_NAME=node2
+    volumes:
+      - ./petals/models/inferd-qwen3:/models/inferd-qwen3
     networks:
       infernet:
         ipv4_address: 172.28.0.4
-
     command:
+      - run_node.py
 
-    - run_node.py
   node3:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        PTH_DIR: node3
     container_name: node3
     ports:
-    - 7053:7050
-    - 6053:6050
+      - 7053:7050
+      - 6053:6050
     environment:
-    - INITIAL_STAGE=2
-    - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050
-    - NODE_NAME=node3
+      - INITIAL_STAGE=2
+      - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050
+      - NODE_NAME=node3
+    volumes:
+      - ./petals/models/inferd-qwen3:/models/inferd-qwen3
     networks:
       infernet:
         ipv4_address: 172.28.0.5
-
     command:
+      - run_node.py
 
-    - run_node.py
+  test_node:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: test_node
+    ports:
+      - 7054:7050
+      - 6054:6050
+    environment:
+      - INITIAL_STAGE=2
+      - BOOTSTRAP_NODES=172.28.0.2:7050,172.28.0.3:7050,172.28.0.4:7050,172.28.0.5:7050
+      - NODE_NAME=node3
+    volumes:
+      - ./petals/models/inferd-qwen3:/models/inferd-qwen3
+    networks:
+      infernet:
+        ipv4_address: 172.28.0.6
+    command:
+      - test.py
+
 networks:
   infernet:
     driver: bridge
     ipam:
       config:
-      - subnet: 172.28.0.0/16
+        - subnet: 172.28.0.0/16

@@ -1,9 +1,9 @@
-from task import Task, NNForwardTask, QwenTask
+from task import Task, QwenTask
 import asyncio
 from node_info import NodeInfo
 
 class TaskScheduler:
-    def __init__(self, 
+    def __init__(self,
                 node_info: NodeInfo,
                 dht):
         self.node_info = node_info

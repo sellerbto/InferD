@@ -6,7 +6,7 @@ from torch import nn
 import torch
 from huggingface_hub import hf_hub_download
 
-from qwen3_config import Qwen3Config
+from models.qwen3.qwen3_config import Qwen3Config
 
 from collections import defaultdict
 
@@ -229,12 +229,12 @@ class Qwen3Server(nn.Module):
             idx = layer.self_attn.layer_idx
             fname = f"layer_{idx:02d}.pt"
 
-            cached_path = hf_hub_download(repo_id=Qwen3Config.HF_REPO_ID, filename=fname)
-
+            # cached_path = hf_hub_download(repo_id=Qwen3Config.HF_REPO_ID, filename=fname)
+            cached_path = f'/models/inferd-qwen3/{fname}'
             layer_sd = torch.load(cached_path, map_location=self.device)
             layer.load_state_dict(layer_sd)
 
-    def send(
+    def forward(
         self,
         session_id,
         hidden_states,

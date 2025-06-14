@@ -1,26 +1,28 @@
-model_name: Qwen/Qwen2-0.5B
-parts_dir: ./model_parts
+model_name: Qwen/Qwen3-0.6B
 stages_count: 3
 
 stages:
-  - name: node0
-    stage: 0
+  - stage: 0
     start_layer: 0
     end_layer: 2
 
-  - name: node1
-    stage: 1
+  - stage: 1
     start_layer: 3
     end_layer: 20
 
-  - name: node2
-    stage: 2
+  - stage: 2
     start_layer: 21
     end_layer: 23
+
+nodes:
+  - name: node0
+    stage: 0
+
+  - name: node1
+    stage: 1
+
+  - name: node2
+    stage: 2
 
   - name: node3
     stage: 2
-    start_layer: 21
-    end_layer: 23
-
-    

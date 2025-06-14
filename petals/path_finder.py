@@ -8,29 +8,44 @@ from balance import Balancer
 from utils import *
 
 class PathFinder:
-    def __init__(self, 
+    def __init__(self,
                 dht : DistributedHashTableServer,
-                node_info : NodeInfo, 
+                node_info : NodeInfo,
                 balancer: Balancer):
         self.dht = dht
         self.node_info = node_info
         self.balancer = balancer
 
-    async def find_best_chain(self) -> list:
-        raise NotImplementedError("This method is not implemented yet")
-        # # todo: D^* algorithm...
-        # chain = []
-        # for stage in range(self.node_info.num_stages):
-        #     record = await self.dht.get(str(stage)) or {}
-        #     if not record:
-        #         await self.balancer.rebalance()
-        #         record = await self.dht.get(str(stage)) or {}
-        #         if not record:
-        #             raise RuntimeError(f"No available servers for stage {stage} after rebalance")
-        #     ip_port, _ = min(record.items(), key=lambda x: x[1]['load'])
-        #     ip, port = parse_ip_port(ip_port)
-        #     chain.append((ip, port))
-        # return chain
+    async def _find_best_chain(self) -> list:
+        """
+        Find the optimal chain of nodes for inference across all stages.
+        Returns a list of (ip, port) tuples representing the best path.
+        Private method - only accessible within Node class.
+        """
+        chain = []
+
+        # Get current DHT state to make optimal decisions
+        dht_map = await self.dht.get_all()
+
+        for stage in range(self.node_info.num_stages):
+            record = await self.dht.get(str(stage)) or {}
+
+            if not record:
+                print(f'No nodes available for stage {stage}, attempting rebalance...')
+                await self.balancer.rebalance()
+                record = await self.dht.get(str(stage)) or {}
+
+                if not record:
+                    raise RuntimeError(f"No available servers for stage {stage} after rebalance")
+
+            # Select node with minimum load for this stage
+            ip_port, node_info = min(record.items(), key=lambda x: x[1]['load'])
+            ip, port = parse_ip_port(ip_port)
+            chain.append((ip, port))
+
+            print(f'Selected node {ip}:{port} for stage {stage} (load: {node_info["load"]})')
+
+        return chain
 
     async def find_best_node(self, stage: int, retry: int = 3):
         # todo: D^* algorithm...
@@ -38,10 +53,10 @@ class PathFinder:
         if retry <= 0:
             raise RuntimeError(f"Cannot find node for stage {stage} after 3 retries")
             print(f'Try to reassign node')
-            dht_map = await self.dht.get_all() 
+            dht_map = await self.dht.get_all()
             lmin, lmax, smin, smax = await min_max_load_stage(self.node_info, dht_map)
             print(lmin, lmax, smin, smax)
-    
+
             potential_nodes_to_reassign = dht_map[str(smin)].keys()
             print(f'potential_nodes_to_reassign = {potential_nodes_to_reassign}')
             ip, port, old_stage = None, None, None
@@ -73,9 +88,9 @@ class PathFinder:
         if not record:
             print(f'No peers available for stage {stage}. Try to rebalance this node with stage = {self.node_info.stage} to stage {stage}')
             # надо какую-то ноду назначить на этот стейдж, сейчас у текущей ноды берется rebalance в надежде что эта нода перестроится на пустой стедж
-            # raise RuntimeError(f"No peers available for stage {stage}") 
+            # raise RuntimeError(f"No peers available for stage {stage}")
             old_stage = self.node_info.stage
-            rebalanced = await self.balancer.rebalance() 
+            rebalanced = await self.balancer.rebalance()
             rebalance_verbose = f'stage changed from {old_stage} to {self.node_info.stage}' if rebalanced else 'nothing changed'
             print(f'Rebalancing result: {rebalance_verbose}')
             print(f'Retry')
@@ -84,9 +99,9 @@ class PathFinder:
         ip_port, _ = min(record.items(), key=lambda x: x[1]['load'])
         # await asyncio.sleep(1)
         return parse_ip_port(ip_port)
-    
+
     async def reassign_node(self, ip: str, http_port: int, to_stage: int):
         url = f'http://{ip}:{http_port}/reassign'
         async with ClientSession() as session:
             async with session.post(url, json={'to': to_stage}) as resp:
-                return await resp.json() 
+                return await resp.json()

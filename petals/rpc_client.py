@@ -1,7 +1,7 @@
 import io
 import torch
 import grpc
-from proto import qwen3_pb2, qwen3_pb2_grpc
+from models.qwen3.proto import qwen3_pb2, qwen3_pb2_grpc
 
 
 class RPCQwen3Client:
@@ -43,7 +43,9 @@ class RPCQwen3Client:
         session_id: str = "",
         timeout: float = 30.0,
     ) -> torch.Tensor:
-        for stub in self.stubs:
+
+        stubs_chain = find_best_chain()
+        for i, stub in enumerate(stubs_chain):
             req = qwen3_pb2.LayerRequest(
                 hidden_states=qwen3_pb2.TensorBlob(data=self.serialize_tensor(hidden_states)),
                 attention_mask=qwen3_pb2.TensorBlob(data=self.serialize_tensor(attention_mask)),
@@ -51,6 +53,7 @@ class RPCQwen3Client:
                 cos_embedding=qwen3_pb2.TensorBlob(data=self.serialize_tensor(cos)),
                 sin_embedding=qwen3_pb2.TensorBlob(data=self.serialize_tensor(sin)),
                 session_id=session_id,
+                stage=i
             )
             resp = stub.ProcessLayer(req, timeout=timeout)
             hidden_states = self.deserialize_tensor(resp.hidden_states.data)

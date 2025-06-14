@@ -76,7 +76,7 @@ add_safe_globals([FirstStage, StageInner, LastStage])
 with open("petals/inferd.yaml") as f:
     cfg = yaml.safe_load(f)
 parts_dir = cfg["parts_dir"]
-stages   = cfg["stages"]
+stages = cfg["stages"]
 
 full = Qwen2ForCausalLM.from_pretrained(cfg["model_name"])
 embed_tokens = full.model.embed_tokens

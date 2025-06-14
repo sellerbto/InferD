@@ -39,7 +39,7 @@ class Qwen3LayerServicer(qwen3_pb2_grpc.Qwen3LayerServicer):
         sid = request.session_id or None
 
         try:
-            out = self.server_module.send(
+            out = self.server_module.forward(
                 session_id=sid,
                 hidden_states=hidden,
                 attention_mask=attn_mask,

@@ -8,11 +8,11 @@ logger = logging.getLogger("Kademlia")
 
 class DistributedHashTableServer:
     def __init__(
-        self, 
-        port: int, 
-        num_stages: int, 
+        self,
+        port: int,
+        num_stages: int,
         bootstrap_nodes=None,
-        bootstrap_timeout: float = 10.0  # Добавлен параметр таймаута
+        bootstrap_timeout: float = 3.0  # Добавлен параметр таймаута
     ):
         self.port = port
         self.bootstrap_nodes = bootstrap_nodes or []
@@ -40,7 +40,7 @@ class DistributedHashTableServer:
     async def stop(self):
         await self.server.stop()
 
-    async def set(self, key: str, value: dict, timeout: float = 5.0):
+    async def set(self, key: str, value: dict, timeout: float = 2.0):
         json_value = json.dumps(value)
         try:
             await asyncio.wait_for(
@@ -52,7 +52,7 @@ class DistributedHashTableServer:
         except Exception as e:
             logger.error(f"Set error: {e}")
 
-    async def get(self, key: str, timeout: float = 5.0) -> dict:
+    async def get(self, key: str, timeout: float = 2.0) -> dict:
         if not self.server.bootstrappable_neighbors():
             return {}
         try:
@@ -67,7 +67,7 @@ class DistributedHashTableServer:
         except Exception as e:
             logger.error(f"Get error: {e}")
             return {}
-        
+
     async def get_all_keys(self):
         keys = [str(i) for i in range(self.num_stages)]
 
@@ -86,8 +86,8 @@ class DistributedHashTableServer:
 
 class DHTServer:
     def __init__(
-        self, 
-        port: int, 
+        self,
+        port: int,
         bootstrap_nodes=None,
         bootstrap_timeout: float = 10.0  # Добавлен параметр таймаута
     ):
@@ -143,7 +143,7 @@ class DHTServer:
                 value = await self.get(key)
                 dht_map[key] = value
         return dht_map
-        
+
     async def run_forever(self):
         while True:
             await asyncio.sleep(3600)

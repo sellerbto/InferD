@@ -2,9 +2,15 @@ import asyncio
 import os
 import socket
 from kademlia_client import DistributedHashTableServer, DHTServer
-from node import Node
-from partitioned_models import FirstStage, StageInner, LastStage
+from node import Node, NodeServicer
+from models.qwen3.proto import qwen3_pb2
+from models.qwen3.proto import qwen3_pb2_grpc
 import yaml
+import os
+import asyncio
+import argparse
+import grpc
+aio = grpc.aio
 
 def get_own_ip() -> str:
     node_ip = os.getenv("NODE_IP")
@@ -40,12 +46,12 @@ async def run_node(node: Node, initial_stage: int):
 async def main():
     with open("inferd.yaml") as f:
         cfg = yaml.safe_load(f)
-    node_stages = int(cfg["stages_count"])
+    node_stages = len(cfg["stages"])
     model_name = cfg["model_name"]
     node_port = 6050
     dht_port = 7050
-    
-    rebalance_period = 2
+
+    rebalance_period = 1
     bootstrap_timeout = 4.0
 
     node_ip = get_own_ip()
@@ -62,7 +68,7 @@ async def main():
         default_port=dht_port
     )
 
-    
+
     dht = DistributedHashTableServer(
         port=dht_port,
         num_stages=node_stages,
@@ -83,7 +89,18 @@ async def main():
         rebalance_period
     )
 
+    servicer = NodeServicer(node)
+    server = aio.server(options=[
+            ("grpc.max_send_message_length", 200 * 1024 * 1024),
+            ("grpc.max_receive_message_length", 200 * 1024 * 1024),
+        ])
+    qwen3_pb2_grpc.add_Qwen3LayerServicer_to_server(servicer, server)
+
+    bind_addr = f"{node_ip}:{node_port}"
+    server.add_insecure_port(bind_addr)
+    await server.start()
+    print(f"🚀 Node")
     await run_node(node, initial_stage)
-        
+
 if __name__ == "__main__":
     asyncio.run(main())
