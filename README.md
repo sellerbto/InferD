@@ -1,34 +1,27 @@
 # InferD
-Distributed inference framework. 
 
-## Algorithms & techniques adopted from **[InferD — Distributed LLM Inference Engine](https://github.com/sellerbto/InferD/tree/defence)**
+Distributed inference framework inspired by [Petals](https://arxiv.org/abs/2209.01188) and [SWARM Parallelism](https://arxiv.org/abs/2301.11913).
 
-- **DHT-based peer discovery (Kademlia-like lookups)**  
-  Lightweight metadata (shard → peers, capacity/health hints) is stored in a DHT so clients/coordinators can resolve shard locations without a central index.
+## Overview
 
-- **Capacity-aware consistent hashing for placement**  
-  Shards are placed using consistent hashing weighted by node capacity (CPU/GPU, RAM, bandwidth), enabling predictable placement and biasing stronger peers to host larger/more shards.
+InferD implements pipeline parallelism for transformer models across decentralized network. Each node hosts subset of model layers (stages) and collaborates via Kademlia DHT. DHT maps stage numbers to available nodes `stage_id -> {node_id: {load, capacity}}`. New nodes connect via bootstrap nodes and announce their stage. No global state sync, nodes query DHT on-demand.
 
-- **Model partitioning & shard addressing**  
-  Support for multiple sharding granularities (layer-wise, contiguous parameter blocks, tensor slices) with stable shard IDs so shards can be located and addressed independently.
+Client sends request to stage-0 node with input text. Node tokenizes, runs forward pass through local layers, queries DHT for next stage, selects least-loaded peer. Hidden states serialized as base64-encoded tensors and forwarded via HTTP. Process repeats until final stage returns decoded token. Stateless HTTP RPC between stages. Each node holds 1/N of model weights. Forward pass requires N-1 network hops per token.
 
-- **Pipelined model-parallel execution with micro-batching**  
-  Execution graphs are pipelined across shards; micro-batching keeps nodes utilized while keeping per-request latency bounded.
+Nodes periodically rebalance to equalize stage load. If current stage has low load and another stage is overloaded, node migrates by reloading model weights for new stage. TaskScheduler tracks active tasks, Balancer compares load distribution via DHT.
 
-- **Activation streaming & compression**  
-  Activations are streamed between peers (not fully materialized centrally). Optional activation compression/quantization and delta-encoding reduce bandwidth and memory peaks.
+System is decentralized, no single point of failure, DHT replicated across all nodes. PathFinder retries on node unavailability and triggers rebalance. Failed nodes removed from DHT via timeout. Multiple nodes can serve same stage for redundancy. Limitations: no checkpointing for in-flight requests on crash, DHT convergence delay after topology changes, cold start penalty for stage reassignment.
 
-- **Replica discovery & speculative re-routing**  
-  Replication metadata in the DHT enables fast failover. Speculative/backup RPCs and simple replica-selection heuristics mitigate stragglers.
+Model partitioning done in `split_model.py`. FirstStage has embedding + rotary + layers[0:k], StageInner has rotary + layers[k:m], LastStage has rotary + layers[m:end] + norm + lm_head. PathFinder selects next-hop using greedy load-based heuristic. D* Lite prepared but unused. Tensors serialized to JSON with base64 encoding.
 
-- **Edge caching & reuse**  
-  Caching of embeddings, recent activations or partial results at edge peers to accelerate repeated or history-heavy requests (useful for chat and next-edit scenarios).
+## Growth Areas
 
-- **Dynamic rebalancing & network-aware scheduling**  
-  Nodes publish capacity/health; placement and scheduling adapt gradually with an emphasis on minimizing end-to-end latency and avoiding large data migrations.
+Activate D* Lite for latency-aware routing, request checkpointing at stage boundaries, batching multiple requests at same stage, KV-cache sharing between requests, persistent connections (gRPC/WebSocket), hierarchical DHT for large swarms, distributed tracing and monitoring.
 
-These components implement the core distributed routing, placement, execution and robustness patterns that InferD explores while combining them with capacity-aware scheduling and practical bandwidth/latency optimizations.
+## Quick Start
 
-To run distributed system, execute ```sh run.sh```
-
-To send inference requests, execute ```uv run send_message.py```
+```bash
+python split_model.py
+INITIAL_STAGE=0 NODE_NAME=node0 python petals/run_node.py
+INITIAL_STAGE=1 NODE_NAME=node1 BOOTSTRAP_NODES=node0:7050 python petals/run_node.py
+```
