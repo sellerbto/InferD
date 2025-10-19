@@ -1,17 +1,33 @@
 # InferD
-Distributed inference framework. There are key features:
+Distributed inference framework. 
 
-1) Model partitioning & placement  
-Split a large model into addressable shards (by layers, contiguous parameter chunks, or tensor slices). Each shard receives a stable ID and a small metadata record (size, memory/compute footprint). Placement uses capacity-aware consistent hashing: peers publish capacity (CPU/GPU, RAM, bandwidth) and the placement policy assigns larger or more shards to stronger peers while keeping shard locality predictable. The goal is to make shards small enough for flexible placement but large enough to avoid excessive RPC overhead. Placement metadata is lightweight so the system can rebalance gradually without moving heavy weights unless necessary.
+## Algorithms & techniques adopted from **[InferD — Distributed LLM Inference Engine](https://github.com/sellerbto/InferD/tree/defence)**
 
-2) DHT-based discovery & smart routing  
-A DHT holds only metadata (shard ID → hosting peer list, capacity/health hints, replica timestamps). Clients and coordinators perform DHT lookups to resolve “where is shard X?” and receive ordered candidates (by latency, load, replica freshness). Because the DHT is decentralized and compact, lookups remain scalable and resilient as peers churn. Routing logic uses the DHT results plus simple heuristics (network proximity, current load) to pick the best peer for each shard call, avoiding a single coordinator bottleneck.
+- **DHT-based peer discovery (Kademlia-like lookups)**  
+  Lightweight metadata (shard → peers, capacity/health hints) is stored in a DHT so clients/coordinators can resolve shard locations without a central index.
 
-3) Execution planning, pipelining & streaming  
-After resolving shard locations, the client or a lightweight planner constructs a distributed execution graph (ordered shard calls + data dependencies). Execution is run as pipelined micro-batches: while shard N works on micro-batch k, shard N+1 processes k-1, etc., to keep all peers busy. Activations are streamed between peers instead of materializing full tensors centrally — this reduces peak memory usage and enables very long models on modest nodes. To reduce latency and bandwidth, the system supports activation compression, quantization, and delta-encoding for incremental edits or “next-edit” style workloads.
+- **Capacity-aware consistent hashing for placement**  
+  Shards are placed using consistent hashing weighted by node capacity (CPU/GPU, RAM, bandwidth), enabling predictable placement and biasing stronger peers to host larger/more shards.
 
-4) Robustness, caching & operational concerns  
-Shards are replicated (configurable replication factor); the DHT lists replicas so failures and slow nodes can be routed around. Speculative backup RPCs or re-routing to fresh replicas mitigate stragglers. Caching (embeddings, recent activations, partial answers) at edge peers accelerates repeated or history-heavy requests; cache TTLs and consistency rules are tuned per workload. Operationally, monitor per-shard latency, network throughput and cache hit rates; tune shard size, replication factor, micro-batch size and caching policies to balance latency, throughput and resource usage.
+- **Model partitioning & shard addressing**  
+  Support for multiple sharding granularities (layer-wise, contiguous parameter blocks, tensor slices) with stable shard IDs so shards can be located and addressed independently.
+
+- **Pipelined model-parallel execution with micro-batching**  
+  Execution graphs are pipelined across shards; micro-batching keeps nodes utilized while keeping per-request latency bounded.
+
+- **Activation streaming & compression**  
+  Activations are streamed between peers (not fully materialized centrally). Optional activation compression/quantization and delta-encoding reduce bandwidth and memory peaks.
+
+- **Replica discovery & speculative re-routing**  
+  Replication metadata in the DHT enables fast failover. Speculative/backup RPCs and simple replica-selection heuristics mitigate stragglers.
+
+- **Edge caching & reuse**  
+  Caching of embeddings, recent activations or partial results at edge peers to accelerate repeated or history-heavy requests (useful for chat and next-edit scenarios).
+
+- **Dynamic rebalancing & network-aware scheduling**  
+  Nodes publish capacity/health; placement and scheduling adapt gradually with an emphasis on minimizing end-to-end latency and avoiding large data migrations.
+
+These components implement the core distributed routing, placement, execution and robustness patterns that InferD explores while combining them with capacity-aware scheduling and practical bandwidth/latency optimizations.
 
 To run distributed system, execute ```sh run.sh```
 
